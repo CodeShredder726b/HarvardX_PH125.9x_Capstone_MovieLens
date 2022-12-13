@@ -93,16 +93,10 @@ removed <- anti_join(temp, final_holdout_test)
 ```{r echo = FALSE}
 if(!require(ggplot2)) install.packages("ggplot2")
 if(!require(devtools)) install.packages("devtools")
-#
-#
-#
-#
+if(!require(benchmarkme)) install.packages("benchmarkme")
 
 library(ggplot2)
-#
-#
-#
-#
+library(benchmarkme)
 ```
 
 The *edx* dataset look like this:
@@ -165,7 +159,11 @@ edx %>% group_by(genres) %>% summarise(perc = n()/nrow(edx)) %>%
 
 ## System
 ### Hardware
-Dell.....
+```{r}
+get_cpu()
+get_ram()
+```
+All above computations are done with an Intel ..... ... cores.and ... GB RAM.
 ### Software
 ```{r}
 sessionInfo()
