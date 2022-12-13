@@ -3,18 +3,26 @@ title: "Report on MovieLens"
 author: "Raphael Kummer"
 date: "`r format(Sys.Date())`"
 output: pdf_document
+bibliography: references.bib
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, progress = TRUE, verbose = TRUE)
 ```
 
-## MovieLens Project
+# MovieLens
 
 ## Introduction
 
+Build a ML model to recommend movies to users.
+
+### Dataset
+
+Grouplens created a movie rating dataset. The 10M dataset [@harper2015] used in this project is a subset of 10 million ratings of 10'000 movies by 72'000 random selected users.
 
 ## Problem
+
+Given is the loading of the MovieLens 10M dataset, split into an *edx* and a *final_holdout_test* set containing 10% of the MovieLens data. The dataset contains userId, movieId, rating, timestamp, title, and genre.
 
 ```{r echo = TRUE, warning = FALSE}
 ##########################################################
@@ -80,12 +88,31 @@ final_holdout_test <- temp %>%
 removed <- anti_join(temp, final_holdout_test)
 ```
 
-## Data Inspection and Preprocessing
+## Data Inspection and preprocessing
+```{r echo = FALSE}
+install.packages("kable")
+```
+
+The *edx* dataset look like this:
+```{r  echo = FALSE}
+knitr::kable(head(edx))
+```
+```{r echo = FALSE}
+head(edx)
+```
+
+
+
+
 
 ## Model
 
 ## Results
+
 ### RMSE
 
 ## Conclusion
 
+## Resources
+
+[1] Rafael Irizarry. 2018. Introduction to Data Science. <https://rafalab.dfci.harvard.edu/dsbook/>
