@@ -13,18 +13,15 @@ knitr::opts_chunk$set(echo = TRUE, progress = TRUE, verbose = TRUE)
 # MovieLens
 
 ## Introduction
-
 Build a ML model to recommend movies to users.
 
 ### Dataset
-
 Grouplens created a movie rating dataset. The 10M dataset [@harper2015] used in this project is a subset of 10 million ratings of 10'000 movies by 72'000 random selected users.
 
-## Problem
-
+## Goal
 Given is the loading of the MovieLens 10M dataset, split into an *edx* and a *final_holdout_test* set containing 10% of the MovieLens data. The dataset contains userId, movieId, rating, timestamp, title, and genre.
 
-```{r echo = TRUE, warning = FALSE}
+```{r echo = FALSE, warning = FALSE}
 ##########################################################
 # Create edx and final_holdout_test sets 
 ##########################################################
@@ -102,15 +99,20 @@ library(benchmarkme)
 The *edx* dataset look like this:
 
 ```{r echo = FALSE}
+# Add layout of edx data with knitr::kable https://www.rdocumentation.org/packages/knitr/versions/1.41/topics/kable
 knitr::kable(head(edx))
 ```
+There are several aspects of the edx dataset to consider exploring:
+- user ratings in relation to genre
+- user ratings in relation to movie release year
+- user ratings in relation to popularity of movies (indie vs blockbuster)
+- ...
 
+### Data cleanup
 Check if there are any NA in the dataset.
-
 ```{r echo=TRUE}
 anyNA(edx)
 ```
-
 There are no missing values in *edx*.
 
 ```{r echo=FALSE}
@@ -140,8 +142,12 @@ Is the rating dependant of genre? (Of a user. e.g. UserX has 90% of rated movies
 ```{r echo=TRUE}
 edx_genres <- edx %>% mutate(comedy = )
 
-edx %>% group_by(genres) %>% summarise(perc = n()/nrow(edx)) %>% 
-  ggplot(aes(genres, perc)) + geom_col() + labs(title = "Genres distribution overall")
+edx %>% 
+  group_by(genres) %>% 
+  summarise(perc = n()/nrow(edx)) %>% 
+    ggplot(aes(genres, perc)) + 
+    geom_col() + 
+    labs(title = "Genres distribution overall")
 ```
 
 -   check user ratings vs different genres
@@ -155,7 +161,11 @@ edx %>% group_by(genres) %>% summarise(perc = n()/nrow(edx)) %>%
 ### RMSE
 
 ## Conclusion
+- summary
+- limitations
+
 ### Future Improvements
+- future work
 
 ## System
 ### Hardware
