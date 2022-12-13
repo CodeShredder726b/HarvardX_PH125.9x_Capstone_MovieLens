@@ -89,21 +89,70 @@ removed <- anti_join(temp, final_holdout_test)
 ```
 
 ## Data Inspection and preprocessing
+
 ```{r echo = FALSE}
-install.packages("kable")
+if(!require(ggplot2)) install.packages("ggplot2")
+if(!require(devtools)) install.packages("devtools")
+#
+#
+#
+#
+
+library(ggplot2)
+#
+#
+#
+#
 ```
 
 The *edx* dataset look like this:
-```{r  echo = FALSE}
+
+```{r echo = FALSE}
 knitr::kable(head(edx))
 ```
-```{r echo = FALSE}
-head(edx)
+
+Check if there are any NA in the dataset.
+
+```{r echo=TRUE}
+anyNA(edx)
 ```
 
+There are no missing values in *edx*.
 
+```{r echo=FALSE}
+edx %>% group_by(rating) %>% summarise(perc = n()/nrow(edx)) %>% 
+  ggplot(aes(rating, perc)) + geom_col() + labs(title = "Rating distribution overall")
 
+#t <- edx %>%
+#  group_by(movieId) %>%
+#  summarize(m = n()) 
 
+#ggplot(data = t, aes(x = movieId)) + 
+#  #geom_bar() +
+#  geom_histogram(binwidth = 100) +
+#  labs(title = "Ratings per movie")# +
+#  #scale_y_log10()
+#    #geom_point() #+
+#    #geom_histogram(bins = 25, binwidth=0.2, color="blue", show.legend = FALSE, aes(fill = cut(n, 100))) + 
+#    #labs(title = "Ratings per movie")
+```
+
+Is the rating of movies dependent of release year of the movie?
+```{r echo=TRUE}
+mutate()
+```
+
+Is the rating dependant of genre? (Of a user. e.g. UserX has 90% of rated movies in the genre of Comedy, he is more likely to rate a Comedy better than Action or Crime)
+```{r echo=TRUE}
+edx_genres <- edx %>% mutate(comedy = )
+
+edx %>% group_by(genres) %>% summarise(perc = n()/nrow(edx)) %>% 
+  ggplot(aes(genres, perc)) + geom_col() + labs(title = "Genres distribution overall")
+```
+
+-   check user ratings vs different genres
+
+-   ...
 
 ## Model
 
@@ -112,6 +161,15 @@ head(edx)
 ### RMSE
 
 ## Conclusion
+### Future Improvements
+
+## System
+### Hardware
+Dell.....
+### Software
+```{r}
+sessionInfo()
+```
 
 ## Resources
 
