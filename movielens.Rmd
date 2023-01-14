@@ -13,13 +13,20 @@ knitr::opts_chunk$set(echo = TRUE, progress = TRUE, verbose = TRUE)
 # MovieLens
 
 ## Introduction
+
 This is a report on the MovieLens data analysis and a recommendation model training and its performance. First the dataset is to be explored and inspected to evaluate possible training approaches. Next part is building a ML model to recommend movies to users.
 
 ### Dataset
+
 Grouplens created a movie rating dataset. The 10M dataset [@harper2015] used in this project is a subset of 10 million ratings of 10'000 movies by 72'000 random selected users.
 
 ## Goal
+
 Given is the loading of the MovieLens 10M dataset, split into an *edx* and a *final_holdout_test* set containing 10% of the MovieLens data. The dataset contains userId, movieId, rating, timestamp, title, and genre.
+
+## Initial Dataset setup
+
+Create edx and final_holdout_test sets from the MovieLens 10M. The final_holdout_test data set should not be used for training, only for evaluating the RMSE.
 
 ```{r echo = FALSE, warning = FALSE}
 ##########################################################
@@ -85,6 +92,8 @@ final_holdout_test <- temp %>%
 removed <- anti_join(temp, final_holdout_test)
 ```
 
+# Analysis
+
 ## Data Inspection and preprocessing
 
 ```{r echo = FALSE}
@@ -102,17 +111,33 @@ The *edx* dataset look like this:
 # Add layout of edx data with knitr::kable https://www.rdocumentation.org/packages/knitr/versions/1.41/topics/kable
 knitr::kable(head(edx))
 ```
-There are several aspects of the edx dataset to consider exploring:
-- user ratings in relation to genre
-- user ratings in relation to movie release year
-- user ratings in relation to popularity of movies (indie vs blockbuster)
-- ...
+
+There are several aspects of the edx dataset to consider exploring: - user ratings in relation to genre - user ratings in relation to movie release year - user ratings in relation to popularity of movies (indie vs blockbuster).
+
+```{r echo=TRUE}
+edx[
+  ,
+  list(
+    `Total Movies` = uniqueN(movieId),
+    `Total Users` = uniqueN(userId),
+    `Total Genres` = uniqueN(genres)
+  )
+]
+```
+
+
+
+
+
 
 ### Data cleanup
+
 Check if there are any NA in the dataset.
+
 ```{r echo=TRUE}
 anyNA(edx)
 ```
+
 There are no missing values in *edx*.
 
 ```{r echo=FALSE}
@@ -134,11 +159,13 @@ edx %>% group_by(rating) %>% summarise(perc = n()/nrow(edx)) %>%
 ```
 
 Is the rating of movies dependent of release year of the movie?
+
 ```{r echo=TRUE}
 #mutate()
 ```
 
 Is the rating dependant of genre? (Of a user. e.g. UserX has 90% of rated movies in the genre of Comedy, he is more likely to rate a Comedy better than Action or Crime)
+
 ```{r echo=TRUE}
 #edx_genres <- edx %>% mutate(comedy = )
 
@@ -154,27 +181,32 @@ edx %>%
 
 -   ...
 
-## Model
+# Model
 
 ## Results
 
 ### RMSE
 
-## Conclusion
-- summary
-- limitations
+# Conclusion
+
+-   summary
+-   limitations
 
 ### Future Improvements
-- future work
+
+-   future work
 
 ## System
+
 ### Hardware
+
 ```{r}
 get_cpu()
 get_ram()
 ```
-All above computations are done with an Intel ..... ... cores.and ... GB RAM.
-### Software
+
+All above computations are done with an Intel ..... ... cores.and ... GB RAM. \### Software
+
 ```{r}
 sessionInfo()
 ```
