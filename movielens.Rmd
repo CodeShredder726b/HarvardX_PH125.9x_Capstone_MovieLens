@@ -13,7 +13,7 @@ knitr::opts_chunk$set(echo = TRUE, progress = TRUE, verbose = TRUE)
 # MovieLens
 
 ## Introduction
-Build a ML model to recommend movies to users.
+This is a report on the MovieLens data analysis and a recommendation model training and its performance. First the dataset is to be explored and inspected to evaluate possible training approaches. Next part is building a ML model to recommend movies to users.
 
 ### Dataset
 Grouplens created a movie rating dataset. The 10M dataset [@harper2015] used in this project is a subset of 10 million ratings of 10'000 movies by 72'000 random selected users.
@@ -135,12 +135,12 @@ edx %>% group_by(rating) %>% summarise(perc = n()/nrow(edx)) %>%
 
 Is the rating of movies dependent of release year of the movie?
 ```{r echo=TRUE}
-mutate()
+#mutate()
 ```
 
 Is the rating dependant of genre? (Of a user. e.g. UserX has 90% of rated movies in the genre of Comedy, he is more likely to rate a Comedy better than Action or Crime)
 ```{r echo=TRUE}
-edx_genres <- edx %>% mutate(comedy = )
+#edx_genres <- edx %>% mutate(comedy = )
 
 edx %>% 
   group_by(genres) %>% 
