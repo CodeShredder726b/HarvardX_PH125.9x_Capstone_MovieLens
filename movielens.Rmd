@@ -100,9 +100,12 @@ removed <- anti_join(temp, final_holdout_test)
 if(!require(ggplot2)) install.packages("ggplot2")
 if(!require(devtools)) install.packages("devtools")
 if(!require(benchmarkme)) install.packages("benchmarkme")
+if(!require(rmarkdown)) install.packages("rmarkdown")
 
 library(ggplot2)
 library(benchmarkme)
+library(rmarkdown)
+library(lubridate)
 ```
 
 The *edx* dataset look like this:
@@ -111,21 +114,35 @@ The *edx* dataset look like this:
 # Add layout of edx data with knitr::kable https://www.rdocumentation.org/packages/knitr/versions/1.41/topics/kable
 knitr::kable(head(edx))
 ```
-
 There are several aspects of the edx dataset to consider exploring: - user ratings in relation to genre - user ratings in relation to movie release year - user ratings in relation to popularity of movies (indie vs blockbuster).
-
+First we transform the UNIX timestamps to date/time and for ease of use also the year.
 ```{r echo=TRUE}
-edx[
-  ,
-  list(
-    `Total Movies` = uniqueN(movieId),
-    `Total Users` = uniqueN(userId),
-    `Total Genres` = uniqueN(genres)
-  )
-]
+edx_1 <- edx %>% 
+  mutate(date = as_datetime(timestamp),
+         year = year(date))
+```
+Also lets separate the genres.
+```{r echo=TRUE}
+#edx[,list(`movies` = uniqueN(movieId), `users` = uniqueN(userId), `genres` = uniqueN(genres))]
+length(unique(edx$userId))
+length(unique(edx$movieId))
+
+#genrecount <- edx %>% separate_rows(generes, sep="\\|") %>% group_by(genres) %>% summarise(number = n()) %>% arrange(desc(number))
+tmp <- edx %>% 
+  mutate(
+    genre = fct_explicit_na(
+      genres,
+      na_level = "no genres"
+      )
+    ) %>% 
+  separate_rows(generes, sep = "\\|")
+
+tmp <- str_split(edx$genres, "\\|")
+
+head(tmp)
 ```
 
-
+There are `r length(unique(edx$movieId))` rated movies by `r length(unique(edx$userId))`. There are `r ....` genres, mostly a movie is a mix of multiple genres.
 
 
 
