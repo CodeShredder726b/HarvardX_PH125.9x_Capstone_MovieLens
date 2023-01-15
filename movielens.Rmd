@@ -115,35 +115,85 @@ The *edx* dataset look like this:
 knitr::kable(head(edx))
 ```
 There are several aspects of the edx dataset to consider exploring: - user ratings in relation to genre - user ratings in relation to movie release year - user ratings in relation to popularity of movies (indie vs blockbuster).
-First we transform the UNIX timestamps to date/time and for ease of use also the year.
+First we transform the UNIX timestamps to date/time and for ease of use also the year. And separate the release year, embedded in the title, for possible further investigation.
 ```{r echo=TRUE}
-edx_1 <- edx %>% 
-  mutate(date = as_datetime(timestamp),
-         year = year(date))
+edx <- edx %>% mutate(date = as_datetime(timestamp), year = year(date))
+edx <- edx %>% mutate(releaseyear = as.numeric(str_extract(str_extract(title, "[/(]\\d{4}[/)]$"), regex("\\d{4}"))))
 ```
 Also lets separate the genres.
 ```{r echo=TRUE}
-#edx[,list(`movies` = uniqueN(movieId), `users` = uniqueN(userId), `genres` = uniqueN(genres))]
+# split genres (several genres separated by |) into single genres
+edx <- edx %>%
+  mutate(genre = fct_explicit_na(genres, na_level = "(No Genre)")) %>%
+  separate_rows(genre, sep = "\\|")
+## check with:
+#edx[1:10,]
+
+# count different genres
+length(unique(edx$genre))
+unique(edx$genre)
+
+# how many movies per genre
+
+# how many ratings per genre
+
+# rating distribution per genre
+
+
+
+###################################
+#genrecount <- edx %>% separate_rows(generes, sep="\\|") %>% group_by(genres) %>% summarise(number = n()) %>% arrange(desc(number))
+#tmp <- edx %>% 
+#  mutate(
+#    genre = fct_explicit_na(
+#      genres,
+#      na_level = "no genres"
+#      )
+#    ) %>% 
+#    separate_rows(generes, sep = "\\|")
+
+#tmp <- str_split(edx$genres, "\\|")
+
+#edx1 <- edx %>% 
+#  mutate(genre = fct_explicit_na(genres, na_level="(no genre)")) %>%
+#  mutate(genre = as.list(strsplit(genres, "|")[[1]]))
+#  #mutate(genre2 = as.list(scan(text=genres, what="", sep="|")))
+#  #strsplit(genre, sep = "\\|")
+
+#test <- edx %>% 
+#  mutate(genre = fct_explicit_na(maingenre, na_level="(no genre)")) %>%
+#  mutate(genre = as.list(strsplit(maingenre, "|")[[1]]))
+
+#edx3 <- edx2 %>% mutate(Comedy = as.numeric(grepl("Comedy",genres)))
+#edx3 <- edx3 %>% mutate(Romance = as.numeric(grepl("Romance",genres)))
+#edx3 <- edx3 %>% mutate(Action = as.numeric(grepl("Action",genres)))
+#edx3 <- edx3 %>% mutate(Crime = as.numeric(grepl("Crime",genres)))
+#edx3 <- edx3 %>% mutate(Thriller = as.numeric(grepl("Thriller",genres)))
+#edx3 <- edx3 %>% mutate(SciFi = as.numeric(grepl("Sci-Fi",genres)))
+#edx3 <- edx3 %>% mutate(Adventure = as.numeric(grepl("Adventure",genres)))
+#edx3 <- edx3 %>% mutate(Drama = as.numeric(grepl("Drama",genres)))
+#edx3 <- edx3 %>% mutate(Children = as.numeric(grepl("Children",genres)))
+#edx3 <- edx3 %>% mutate(Fantasy = as.numeric(grepl("Fantasy",genres)))
+
+#tmp <- edx2[1:3,]
+
+#tmp %>% mutate(x = str_split(generes, "\\|") %>% as.data.frame()) 
+#separate(tmp, col=genres, into=c('x','y'), sep='i', extra="merge")
+#separate(df, col=stats, into=c('points', 'assists'), sep='-')
+
+#tmp2 <- tmp %>% mutate(Gen = as.list(strsplit(genres, "\\|")))
+#tmp2$Gen[[c(1,1)]]
+#tmp %>% separate_rows(genres, sep ="\\|")
+```
+There are `r length(unique(edx$movieId))` rated movies by `r length(unique(edx$userId))`. There are `r length(unique(edx$genre))` genres, mostly a movie is a mix of multiple genres.
+```{r echo=TRUE}
 length(unique(edx$userId))
 length(unique(edx$movieId))
-
-#genrecount <- edx %>% separate_rows(generes, sep="\\|") %>% group_by(genres) %>% summarise(number = n()) %>% arrange(desc(number))
-tmp <- edx %>% 
-  mutate(
-    genre = fct_explicit_na(
-      genres,
-      na_level = "no genres"
-      )
-    ) %>% 
-  separate_rows(generes, sep = "\\|")
-
-tmp <- str_split(edx$genres, "\\|")
-
-head(tmp)
 ```
 
-There are `r length(unique(edx$movieId))` rated movies by `r length(unique(edx$userId))`. There are `r ....` genres, mostly a movie is a mix of multiple genres.
+Most rated genre:
 
+Rating distribution per genre:
 
 
 
@@ -199,7 +249,27 @@ edx %>%
 -   ...
 
 # Model
+## Mean
+```{r echo=TRUE}
+mu_hat <- mean(edx$rating)
+rmse_mean_model <- RMSE(validation$rating, mu_hat)
+```
+## Mean + Movie
+with movie bias
+```{r echo=TRUE}
 
+rmse_mean_model <- RMSE(validation$rating, mu_hat)
+```
+## Mean + Movie + Genre
+```{r echo=TRUE}
+mu_hat <- mean(edx$rating)
+rmse_mean_model <- RMSE(validation$rating, mu_hat)
+```
+## Mean + Movie + Genre + User
+```{r echo=TRUE}
+mu_hat <- mean(edx$rating)
+rmse_mean_model <- RMSE(validation$rating, mu_hat)
+```
 ## Results
 
 ### RMSE
