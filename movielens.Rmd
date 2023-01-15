@@ -106,6 +106,7 @@ library(ggplot2)
 library(benchmarkme)
 library(rmarkdown)
 library(lubridate)
+library(scales)
 ```
 
 The *edx* dataset look like this:
@@ -117,75 +118,119 @@ knitr::kable(head(edx))
 There are several aspects of the edx dataset to consider exploring: - user ratings in relation to genre - user ratings in relation to movie release year - user ratings in relation to popularity of movies (indie vs blockbuster).
 First we transform the UNIX timestamps to date/time and for ease of use also the year. And separate the release year, embedded in the title, for possible further investigation.
 ```{r echo=TRUE}
-edx <- edx %>% mutate(date = as_datetime(timestamp), year = year(date))
+# interpret the UNIX timestamp into readable date, extract also year of rating
+edx <- edx %>% mutate(date = as_datetime(timestamp), yearrated = year(date))
+
+# extract release year from the movie title
 edx <- edx %>% mutate(releaseyear = as.numeric(str_extract(str_extract(title, "[/(]\\d{4}[/)]$"), regex("\\d{4}"))))
 ```
 Also lets separate the genres.
 ```{r echo=TRUE}
-# split genres (several genres separated by |) into single genres
-edx <- edx %>%
+## for further analysis we copy the dataset, so we don't contaminate the edx one
+#edx_cpy <- edx
+
+# split genres (several genres separated by |) into single genres for analysis depending on genres
+edx_genres <- edx %>%
   mutate(genre = fct_explicit_na(genres, na_level = "(No Genre)")) %>%
   separate_rows(genre, sep = "\\|")
-## check with:
-#edx[1:10,]
+## check with: edx[1:10,]
 
-# count different genres
-length(unique(edx$genre))
-unique(edx$genre)
+# count and list different genres
+length(unique(edx_genres$genre))
+unique(edx_genres$genre)
 
-# how many movies per genre
+# how many movies released per year
+edx %>% group_by(releaseyear) %>%
+  dplyr::summarize(count = n()) %>%
+  ggplot(aes(releaseyear, count)) +
+    geom_point() +
+    theme_light() +
+    ggtitle("Nr. of Movies per Release Year")
+
+# how many movies are attributed with a genre
+edx_genres %>% #group_by(releaseyear) %>%
+  dplyr::summarize(count = n()) %>%
+  ggplot(aes(releaseyear, count)) +
+    geom_point() +
+    theme_light() +
+    ggtitle("Nr. of Movies per Release Year")
 
 # how many ratings per genre
+edx_genres %>% group_by(genre) %>%
+  dplyr::summarize(count = n()) %>%
+  ggplot(aes(x=genre, y=count)) +
+    geom_bar(stat="identity") +
+    scale_y_continuous(labels = comma) +
+    theme(axis.text.x = element_text(angle=90)) +
+    ggtitle("Total Nr. of Movies per Genre")
 
-# rating distribution per genre
+# how many movies per genre per decade
+edx_decades <- edx
+edx_decades <- edx_decades %>% 
+  mutate(decade = floor(releaseyear/10)*10) %>% 
+  group_by(genre, decade) %>%
+  dplyr::summarise(count = n()) %>%
+  as.data.frame 
+
+edx_decades %>%
+  ggplot(aes(x=genre, y=count, fill=decade)) +
+    geom_bar(stat="identity", na.rm=TRUE) +
+    scale_y_continuous(labels = comma) +
+    theme(axis.text.x = element_text(angle=90)) +
+    ggtitle("Nr. of Movies per Genre per decade")
+
+## how many ratings per genre
+#edx %>% group_by(genre) %>%
+#  summarize(count = n()) %>%
+#  ggplot(aes(x=genre, y=count)) +
+#    geom_bar(stat="identity") +
+#    scale_y_continuous(labels = comma) +
+#    theme(axis.text.x = element_text(angle=90)) +
+#    ggtitle("Total Nr. of Movies per Genre")
+
+# mean ratings per genre
+edx_genre %>%
+  filter(genre != "(No Genre)") %>%
+  group_by(genre) %>%
+  dplyr::summarise(rate_avg = mean(rating)) %>%
+  arrange(desc(rate_avg)) %>%
+  ggplot(aes(x=reorder(genre,-rate_avg), y=rate_avg)) +
+  geom_bar(stat="identity") +
+  xlab("Genre") +
+  ylab("Average Rating") +
+  theme(axis.text.x = element_text(angle=90)) +
+  ggtitle("Mean Rating per Genre")
+  
+# rating (mean) vs release year
+edx %>% group_by(releaseyear) %>%
+  summarize(rating = mean(rating)) %>%
+  ggplot(aes(releaseyear, rating)) +
+  geom_point() +
+  geom_smooth() +
+  theme_light() +
+  ggtitle("Mean Rating vs Release Year")
+
+# ratings per user
+ratings_distibution_per_user_gg <- edx %>%
+  ggplot(aes(userId)) +
+  geom_histogram(bins=500) +
+  scale_y_continuous(labels = function(x) format(x, scientific = FALSE)) +
+  xlab("userId") +
+  ylab("Number of ratings") +
+  ggtitle("Ratings distribution per user") +
+  theme(
+    plot.title = element_text(hjust = 0.5, color="#010101", size=rel(1.0)),
+    axis.title.y = element_text(color="#010101"),
+    axis.title.x = element_text(color="#010101"),
+    legend.position = "none"
+  )
 
 
-
-###################################
-#genrecount <- edx %>% separate_rows(generes, sep="\\|") %>% group_by(genres) %>% summarise(number = n()) %>% arrange(desc(number))
-#tmp <- edx %>% 
-#  mutate(
-#    genre = fct_explicit_na(
-#      genres,
-#      na_level = "no genres"
-#      )
-#    ) %>% 
-#    separate_rows(generes, sep = "\\|")
-
-#tmp <- str_split(edx$genres, "\\|")
-
-#edx1 <- edx %>% 
-#  mutate(genre = fct_explicit_na(genres, na_level="(no genre)")) %>%
-#  mutate(genre = as.list(strsplit(genres, "|")[[1]]))
-#  #mutate(genre2 = as.list(scan(text=genres, what="", sep="|")))
-#  #strsplit(genre, sep = "\\|")
-
-#test <- edx %>% 
-#  mutate(genre = fct_explicit_na(maingenre, na_level="(no genre)")) %>%
-#  mutate(genre = as.list(strsplit(maingenre, "|")[[1]]))
-
-#edx3 <- edx2 %>% mutate(Comedy = as.numeric(grepl("Comedy",genres)))
-#edx3 <- edx3 %>% mutate(Romance = as.numeric(grepl("Romance",genres)))
-#edx3 <- edx3 %>% mutate(Action = as.numeric(grepl("Action",genres)))
-#edx3 <- edx3 %>% mutate(Crime = as.numeric(grepl("Crime",genres)))
-#edx3 <- edx3 %>% mutate(Thriller = as.numeric(grepl("Thriller",genres)))
-#edx3 <- edx3 %>% mutate(SciFi = as.numeric(grepl("Sci-Fi",genres)))
-#edx3 <- edx3 %>% mutate(Adventure = as.numeric(grepl("Adventure",genres)))
-#edx3 <- edx3 %>% mutate(Drama = as.numeric(grepl("Drama",genres)))
-#edx3 <- edx3 %>% mutate(Children = as.numeric(grepl("Children",genres)))
-#edx3 <- edx3 %>% mutate(Fantasy = as.numeric(grepl("Fantasy",genres)))
-
-#tmp <- edx2[1:3,]
-
-#tmp %>% mutate(x = str_split(generes, "\\|") %>% as.data.frame()) 
-#separate(tmp, col=genres, into=c('x','y'), sep='i', extra="merge")
-#separate(df, col=stats, into=c('points', 'assists'), sep='-')
-
-#tmp2 <- tmp %>% mutate(Gen = as.list(strsplit(genres, "\\|")))
-#tmp2$Gen[[c(1,1)]]
-#tmp %>% separate_rows(genres, sep ="\\|")
 ```
 There are `r length(unique(edx$movieId))` rated movies by `r length(unique(edx$userId))`. There are `r length(unique(edx$genre))` genres, mostly a movie is a mix of multiple genres.
+Top three genres overall are Drama, Comedy and Action. Followed by Thriller, Adventure, Romance, Crime and Sci-Fi. 
+Movies from 1930 to 1980 were rated higher on average than in the last 20 years. 
+Film-Noir has the highest average ratings of all genres, wheras Horror has the least.
 ```{r echo=TRUE}
 length(unique(edx$userId))
 length(unique(edx$movieId))
@@ -249,10 +294,22 @@ edx %>%
 -   ...
 
 # Model
+```{r echo=TRUE}
+# add results of models to table
+ml_results <- tibble()
+```
+
+
 ## Mean
 ```{r echo=TRUE}
+# average all ratings
 mu_hat <- mean(edx$rating)
+# RMSE (on validation)
 rmse_mean_model <- RMSE(validation$rating, mu_hat)
+
+# result
+ml_results <- ml_results %>% 
+  bind_rows(tibble(Model="Mean Model", RMSE=rmse_mean_model))
 ```
 ## Mean + Movie
 with movie bias
