@@ -1,8 +1,12 @@
 ---
-title: "Report on MovieLens"
+title: "Report on MovieLens and Recommendation System"
+subtitle: "HarvardX Data Science Capstone Project"
 author: "Raphael Kummer"
 date: "`r format(Sys.Date())`"
-output: pdf_document
+output: 
+  pdf_document:
+    df_print: kable
+    toc: yes
 bibliography: references.bib
 ---
 
@@ -22,7 +26,7 @@ Grouplens created a movie rating dataset. The 10M dataset [@harper2015] used in 
 
 ## Goal
 
-Given is the loading of the MovieLens 10M dataset, split into an *edx* and a *final_holdout_test* set containing 10% of the MovieLens data. The dataset contains userId, movieId, rating, timestamp, title, and genre.
+Given is the loading of the MovieLens 10M dataset, split into an *edx* and a *final_holdout_test* set containing 10% of the MovieLens data. The dataset contains userId, movieId, rating, timestamp, title, and genre. This dataset is used to explore and gain insight on how an effective recommendation algorithm could be developed. Such a machine learning algorithm is then developed and tested against the test set.
 
 ## Initial Dataset setup
 
@@ -125,11 +129,6 @@ edx[
 ]
 ```
 
-
-
-
-
-
 ### Data cleanup
 
 Check if there are any NA in the dataset.
@@ -193,19 +192,22 @@ edx %>%
 -   limitations
 
 ### Future Improvements
+Further information about the users could imporve accuracy, e.g. shopping preferences, music taste, background infourmation like education level. But there privacy concern about the usage of user personal data has to be considered. Training with larger dataset would be beneficial but would require more capable systems (e.g. with GPU). 
 
--   future work
+# System
 
-## System
+## Hardware
 
-### Hardware
+All above computations are done with an `r {get_cpu().model_name}` CPU with `r {get_cpu().no_of_cores}` and `r {get_ram()}`` of RAM.
 
 ```{r}
-get_cpu()
-get_ram()
+#get_cpu()
+#get_ram()
 ```
 
-All above computations are done with an Intel ..... ... cores.and ... GB RAM. \### Software
+## Software
+
+This report is compiled using R markdown with RStudio.
 
 ```{r}
 sessionInfo()
