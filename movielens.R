@@ -299,13 +299,37 @@ edx %>%
     labs(x="Year rated", y="NOF Movies", title="Nr of movies rated per year")
 # Movie ratings per year are stable with some outliers.
 
+# average rating of movies of genres in 5-year bins
+edx_5yr <- edx %>%
+  mutate(five_year = floor((releaseyear - 1) / 5) * 5 + 1) %>%
+  group_by(main_genre, five_year) %>%
+  summarize(mean_rating = mean(rating, na.rm = TRUE)) %>%
+  as.data.frame()
 
-#
-#
-#
-#
-#
-#
+# include only some selected genres
+edx_5yr_genre <- filter(edx_5yr, main_genre %in% c("Fantasy", "Action", "Adventure", "Drama", "Horror", "Thriller"))
+
+# plot the average rating of a genre with an overlayed fitting curve
+ggplot(edx_5yr_genre, aes(x = five_year, y = mean_rating, color = main_genre)) +
+  geom_line() +
+  geom_smooth(method = "lm", formula = y ~ poly(x,8), se = FALSE, size = 1.5) +
+  scale_x_continuous(limits = c(1915, 2008), breaks = seq(1915, 2008, 5)) +
+  labs(x = "Year", y = "Average Rating", color = "Genre")
+# some genres have pretty consistent average ratings over the years, others like e.g. 
+# Horror or Fantasy fluctuate a lot more.
+
+#edx_decades <- edx
+#edx_decades <- edx_decades %>% 
+#  mutate(decade = floor(releaseyear/10)*10) %>% 
+#  group_by(main_genre, decade) %>%
+#  dplyr::summarise(count = n()) %>%
+#  as.data.frame 
+
+#ggplot(edx_decades, aes(x = decade, y = count, color = main_genre)) +
+#  geom_line() +
+#  scale_x_continuous(limits = c(1900, 2020), breaks = seq(1900, 2020, 10)) +
+#  labs(x = "Decade", y = "Number of Movies", color = "Genre")
+
 # Number of movies per genre per decade
 #
 #
@@ -513,15 +537,14 @@ lambda <- lambdas[which.min(rmses)]
 print(lambda)
 
 ########### TUNING ##############
-tuning_param <- seq(0, 0.006, 0.001)
+tuning_param <- seq(0, 1, 0.1)
 
 rmse_seq <- sapply(tuning_param, function(t) {
   avg <- mean(train_set$rating)
   
   genre_bias <- train_set %>%
     group_by(main_genre) %>%
-    summarise(deviation_genre = sum(rating - movie_avg)/(n() + t))
-    #summarise(deviation_genre = 0.0055 * sum(rating - movie_avg)/n())
+    summarise(deviation_genre = 0.0055 * sum(rating - movie_avg)/n())
   
   movie_bias <- train_set %>%
     group_by(movieId) %>%
@@ -583,7 +606,7 @@ print(param)
 # 
 # Even with all this tuning, lower than 0.8786 is not possible with this approach.
 
-
+#include year of rate or year diff from release to rating?
 #decade instead of release year? 5 year bins?
 #side genres?
 #remove outliers?
