@@ -606,11 +606,6 @@ print(param)
 # 
 # Even with all this tuning, lower than 0.8786 is not possible with this approach.
 
-#include year of rate or year diff from release to rating?
-#decade instead of release year? 5 year bins?
-#side genres?
-#remove outliers?
-
 ########### FINAL RMSE ##############
 #
 #     0.879
