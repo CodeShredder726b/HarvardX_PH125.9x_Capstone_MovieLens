@@ -17,20 +17,16 @@ knitr::opts_chunk$set(echo = TRUE, progress = TRUE, verbose = TRUE)
 # MovieLens
 
 ## Introduction
-
-This is a report on the MovieLens data analysis and a recommendation model training and its performance. First the dataset is to be explored and inspected to evaluate possible training approaches. Next part is building a ML model to recommend movies to users.
+This is a report on the MovieLens data analysis and a recommendation model training and the models achieved performance. First the dataset is to be explored, possibly cleaned and inspected to evaluate possible training approaches. Next part is building a ML model to recommend movies to users.
 
 ### Dataset
-
 Grouplens created a movie rating dataset. The 10M dataset [@harper2015] used in this project is a subset of 10 million ratings of 10'000 movies by 72'000 random selected users.
 
+## Initial setup
+Given is the loading of the MovieLens 10M dataset, split into an *edx* and a *final_holdout_test* set containing 10% of the MovieLens data only used for validating at the end. The dataset contains userId, movieId, rating, timestamp, title, and genre. 
+
 ## Goal
-
-Given is the loading of the MovieLens 10M dataset, split into an *edx* and a *final_holdout_test* set containing 10% of the MovieLens data. The dataset contains userId, movieId, rating, timestamp, title, and genre. This dataset is used to explore and gain insight on how an effective recommendation algorithm could be developed. Such a machine learning algorithm is then developed and tested against the test set.
-
-## Initial Dataset setup
-
-Create edx and final_holdout_test sets from the MovieLens 10M. The final_holdout_test data set should not be used for training, only for evaluating the RMSE.
+This dataset is used to explore and gain insight on how an effective recommendation algorithm could be developed. Such a machine learning algorithm is then developed and tested against the *final_holdout_test* set.
 
 ```{r echo = FALSE, warning = FALSE}
 ##########################################################
@@ -104,9 +100,13 @@ removed <- anti_join(temp, final_holdout_test)
 if(!require(ggplot2)) install.packages("ggplot2")
 if(!require(devtools)) install.packages("devtools")
 if(!require(benchmarkme)) install.packages("benchmarkme")
+if(!require(rmarkdown)) install.packages("rmarkdown")
 
 library(ggplot2)
 library(benchmarkme)
+library(rmarkdown)
+library(lubridate)
+library(scales)
 ```
 
 The *edx* dataset look like this:
@@ -115,19 +115,131 @@ The *edx* dataset look like this:
 # Add layout of edx data with knitr::kable https://www.rdocumentation.org/packages/knitr/versions/1.41/topics/kable
 knitr::kable(head(edx))
 ```
-
 There are several aspects of the edx dataset to consider exploring: - user ratings in relation to genre - user ratings in relation to movie release year - user ratings in relation to popularity of movies (indie vs blockbuster).
-
+First we transform the UNIX timestamps to date/time and for ease of use also the year. And separate the release year, embedded in the title, for possible further investigation.
 ```{r echo=TRUE}
-edx[
-  ,
-  list(
-    `Total Movies` = uniqueN(movieId),
-    `Total Users` = uniqueN(userId),
-    `Total Genres` = uniqueN(genres)
-  )
-]
+# interpret the UNIX timestamp into readable date, extract also year of rating
+edx <- edx %>% mutate(date = as_datetime(timestamp), yearrated = year(date))
+
+# extract release year from the movie title
+edx <- edx %>% mutate(releaseyear = as.numeric(str_extract(str_extract(title, "[/(]\\d{4}[/)]$"), regex("\\d{4}"))))
 ```
+Also lets separate the genres.
+```{r echo=TRUE}
+## for further analysis we copy the dataset, so we don't contaminate the edx one
+#edx_cpy <- edx
+
+# split genres (several genres separated by |) into single genres for analysis depending on genres
+edx_genres <- edx %>%
+  mutate(genre = fct_explicit_na(genres, na_level = "(No Genre)")) %>%
+  separate_rows(genre, sep = "\\|")
+## check with: edx[1:10,]
+
+# count and list different genres
+length(unique(edx_genres$genre))
+unique(edx_genres$genre)
+
+# how many movies released per year
+edx %>% group_by(releaseyear) %>%
+  dplyr::summarize(count = n()) %>%
+  ggplot(aes(releaseyear, count)) +
+    geom_point() +
+    theme_light() +
+    ggtitle("Nr. of Movies per Release Year")
+
+# how many movies are attributed with a genre
+edx_genres %>% #group_by(releaseyear) %>%
+  dplyr::summarize(count = n()) %>%
+  ggplot(aes(releaseyear, count)) +
+    geom_point() +
+    theme_light() +
+    ggtitle("Nr. of Movies per Release Year")
+
+# how many ratings per genre
+edx_genres %>% group_by(genre) %>%
+  dplyr::summarize(count = n()) %>%
+  ggplot(aes(x=genre, y=count)) +
+    geom_bar(stat="identity") +
+    scale_y_continuous(labels = comma) +
+    theme(axis.text.x = element_text(angle=90)) +
+    ggtitle("Total Nr. of Movies per Genre")
+
+# how many movies per genre per decade
+edx_decades <- edx
+edx_decades <- edx_decades %>% 
+  mutate(decade = floor(releaseyear/10)*10) %>% 
+  group_by(genre, decade) %>%
+  dplyr::summarise(count = n()) %>%
+  as.data.frame 
+
+edx_decades %>%
+  ggplot(aes(x=genre, y=count, fill=decade)) +
+    geom_bar(stat="identity", na.rm=TRUE) +
+    scale_y_continuous(labels = comma) +
+    theme(axis.text.x = element_text(angle=90)) +
+    ggtitle("Nr. of Movies per Genre per decade")
+
+## how many ratings per genre
+#edx %>% group_by(genre) %>%
+#  summarize(count = n()) %>%
+#  ggplot(aes(x=genre, y=count)) +
+#    geom_bar(stat="identity") +
+#    scale_y_continuous(labels = comma) +
+#    theme(axis.text.x = element_text(angle=90)) +
+#    ggtitle("Total Nr. of Movies per Genre")
+
+# mean ratings per genre
+edx_genre %>%
+  filter(genre != "(No Genre)") %>%
+  group_by(genre) %>%
+  dplyr::summarise(rate_avg = mean(rating)) %>%
+  arrange(desc(rate_avg)) %>%
+  ggplot(aes(x=reorder(genre,-rate_avg), y=rate_avg)) +
+  geom_bar(stat="identity") +
+  xlab("Genre") +
+  ylab("Average Rating") +
+  theme(axis.text.x = element_text(angle=90)) +
+  ggtitle("Mean Rating per Genre")
+  
+# rating (mean) vs release year
+edx %>% group_by(releaseyear) %>%
+  summarize(rating = mean(rating)) %>%
+  ggplot(aes(releaseyear, rating)) +
+  geom_point() +
+  geom_smooth() +
+  theme_light() +
+  ggtitle("Mean Rating vs Release Year")
+
+# ratings per user
+ratings_distibution_per_user_gg <- edx %>%
+  ggplot(aes(userId)) +
+  geom_histogram(bins=500) +
+  scale_y_continuous(labels = function(x) format(x, scientific = FALSE)) +
+  xlab("userId") +
+  ylab("Number of ratings") +
+  ggtitle("Ratings distribution per user") +
+  theme(
+    plot.title = element_text(hjust = 0.5, color="#010101", size=rel(1.0)),
+    axis.title.y = element_text(color="#010101"),
+    axis.title.x = element_text(color="#010101"),
+    legend.position = "none"
+  )
+
+
+```
+There are `r length(unique(edx$movieId))` rated movies by `r length(unique(edx$userId))`. There are `r length(unique(edx$genre))` genres, mostly a movie is a mix of multiple genres.
+Top three genres overall are Drama, Comedy and Action. Followed by Thriller, Adventure, Romance, Crime and Sci-Fi. 
+Movies from 1930 to 1980 were rated higher on average than in the last 20 years. 
+Film-Noir has the highest average ratings of all genres, wheras Horror has the least.
+```{r echo=TRUE}
+length(unique(edx$userId))
+length(unique(edx$movieId))
+```
+
+
+Most rated genre:
+
+Rating distribution per genre:
 
 ### Data cleanup
 
@@ -181,7 +293,39 @@ edx %>%
 -   ...
 
 # Model
+```{r echo=TRUE}
+# add results of models to table
+ml_results <- tibble()
+```
 
+
+## Mean
+```{r echo=TRUE}
+# average all ratings
+mu_hat <- mean(edx$rating)
+# RMSE (on validation)
+rmse_mean_model <- RMSE(validation$rating, mu_hat)
+
+# result
+ml_results <- ml_results %>% 
+  bind_rows(tibble(Model="Mean Model", RMSE=rmse_mean_model))
+```
+## Mean + Movie
+with movie bias
+```{r echo=TRUE}
+
+rmse_mean_model <- RMSE(validation$rating, mu_hat)
+```
+## Mean + Movie + Genre
+```{r echo=TRUE}
+mu_hat <- mean(edx$rating)
+rmse_mean_model <- RMSE(validation$rating, mu_hat)
+```
+## Mean + Movie + Genre + User
+```{r echo=TRUE}
+mu_hat <- mean(edx$rating)
+rmse_mean_model <- RMSE(validation$rating, mu_hat)
+```
 ## Results
 
 ### RMSE
