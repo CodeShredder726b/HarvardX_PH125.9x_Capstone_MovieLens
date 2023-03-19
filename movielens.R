@@ -139,6 +139,8 @@ edx %>%
 ##########################################################
 # Are there any NA in the dataset?
 anyNA(edx)
+
+edx[apply(is.na(edx), 1, any), ]
 # none
 
 # List genres 
@@ -645,4 +647,41 @@ ml_results <- ml_results %>%
   bind_rows(tibble(Model="Final Model Verification", RMSE=rmse_final_model))
 
 
+# System Infos:
+## Hardware
+hw_cpu <- get_cpu()
+hw_cpu$model_name
+hw_cpu$no_of_cores
 
+
+
+
+
+
+
+install.packages('biganalytics')
+library(biganalytics)
+RMSE = function(m, o){
+  sqrt(mean((m - o)^2))
+}
+
+x <- matrix(unlist(train_set), ncol=4)
+colnames(x) <- names(train_set)
+x <- as.big.matrix(x)
+head(x)
+
+blm_model <- biglm.big.matrix(rating ~ movieId + userId, data=x)
+predictions <- predict(blm, newdata=test_set)
+rmse_blm_model <- RMSE(test_set$rating, predictions)
+rmse_blm_model
+
+svm_model <- svm(rating ~ movieId + userId, data=x, kernel="linear", cost=1)
+predictions <- predict(svm_model, newdata=test$set)
+
+
+library(e1071)
+
+#svm_model <- train(rating ~ movieId + userId + main_genre, data=train_set, method="svmRadial", metric=metric, trControl=control)
+svm_model <- svm(rating ~ movieId + userId + genres, data=train_set, kernel="linear", cost=1)
+predictions <- predict(svm_model, newdata=test_set)
+rmse_svm_model <- RMSE(final_holdout_test$rating, predictions)
