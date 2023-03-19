@@ -620,16 +620,119 @@ rmses <- sapply(lambdas, function(lambda) {
 ```
 
 ## Tuning
-After searching for each tuning parameter individualy these are the final tuning parameters:
+
+Lets try to tune the three biases, each individually and plot the tuning parameter and the resulting RMSE.
+
+```{r echo=FALSE, warning=FALSE, results='asis', out.width="%"}
+tuning_param <- seq(0, 1, 0.1)
+
+### tuning genre bias
+rmse_seq <- sapply(tuning_param, function(t) {
+  avg <- mean(train_set$rating)
+  
+  genre_bias <- train_set %>%
+    group_by(main_genre) %>%
+    summarise(deviation_genre = t * sum(rating - movie_avg)/n())
+  
+  movie_bias <- train_set %>%
+    group_by(movieId) %>%
+    summarise(deviation_movie = 0.8944 * sum(rating - movie_avg)/n())
+  
+  user_bias <- train_set %>%
+    group_by(userId) %>%
+    summarise(deviation_user = 0.798 * sum(rating - movie_avg)/n())
+  
+  model <- test_set %>%
+    inner_join(genre_bias, by="main_genre") %>%
+    inner_join(movie_bias, by="movieId") %>%
+    inner_join(user_bias, by="userId")
+  
+  model$predicted_rating <- model$deviation_genre + 
+                            model$deviation_user + 
+                            model$deviation_movie + 
+                            movie_avg
+  
+  return(RMSE(test_set$rating, model$predicted_rating))
+})
+
+# plot the tuning parameters
+qplot(tuning_param, rmse_seq, geom="line")
+
+# tuning movie bias
+rmse_seq <- sapply(tuning_param, function(t) {
+  avg <- mean(train_set$rating)
+  
+  genre_bias <- train_set %>%
+    group_by(main_genre) %>%
+    summarise(deviation_genre = 0.005 * sum(rating - movie_avg)/n())
+  
+  movie_bias <- train_set %>%
+    group_by(movieId) %>%
+    summarise(deviation_movie = t * sum(rating - movie_avg)/n())
+  
+  user_bias <- train_set %>%
+    group_by(userId) %>%
+    summarise(deviation_user = 0.798 * sum(rating - movie_avg)/n())
+  
+  model <- test_set %>%
+    inner_join(genre_bias, by="main_genre") %>%
+    inner_join(movie_bias, by="movieId") %>%
+    inner_join(user_bias, by="userId")
+  
+  model$predicted_rating <- model$deviation_genre + 
+    model$deviation_user + 
+    model$deviation_movie + 
+    movie_avg
+  
+  return(RMSE(test_set$rating, model$predicted_rating))
+})
+
+# plot the tuning parameters
+qplot(tuning_param, rmse_seq, geom="line")
+
+#### tuning user bias
+rmse_seq <- sapply(tuning_param, function(t) {
+  avg <- mean(train_set$rating)
+  
+  genre_bias <- train_set %>%
+    group_by(main_genre) %>%
+    summarise(deviation_genre = 0.005 * sum(rating - movie_avg)/n())
+  
+  movie_bias <- train_set %>%
+    group_by(movieId) %>%
+    summarise(deviation_movie = 0.8944 * sum(rating - movie_avg)/n())
+  
+  user_bias <- train_set %>%
+    group_by(userId) %>%
+    summarise(deviation_user = t * sum(rating - movie_avg)/n())
+  
+  model <- test_set %>%
+    inner_join(genre_bias, by="main_genre") %>%
+    inner_join(movie_bias, by="movieId") %>%
+    inner_join(user_bias, by="userId")
+  
+  model$predicted_rating <- model$deviation_genre + 
+    model$deviation_user + 
+    model$deviation_movie + 
+    movie_avg
+  
+  return(RMSE(test_set$rating, model$predicted_rating))
+})
+
+# plot the tuning parameters
+qplot(tuning_param, rmse_seq, geom="line")
+```
+
+After searching for each tuning parameter individually these are the final tuning parameters:
 
 * genre_bias: 0.0055
 * movie_bias: 0.8944
 * user_bias: 0.798
 
-```{r echo=TRUE}
-tuning_param <- seq(0, 1, 0.1)
+The resulting tuned function with the individual bias tuning factors:
 
-rmse_seq <- sapply(tuning_param, function(t) {
+```{r echo=TRUE}
+tuned_movie_user_genre_model <- function(t) {
   avg <- mean(train_set$rating)
   
   genre_bias <- train_set %>%
@@ -644,48 +747,26 @@ rmse_seq <- sapply(tuning_param, function(t) {
     group_by(userId) %>%
     summarise(deviation_user = 0.798 * sum(rating - movie_avg)/n())
   
-  #release_year_1_bias <- train_set %>%
-  #  group_by(releaseyear) %>%
-  #  ifelse(releaseyear < 1930)
-  #  summarise(deviation_releaseyear = t * sum(rating - movie_avg)/n())
-  #
-  #release_year_2_bias <- train_set %>%
-  #  group_by(releaseyear) %>%
-  #  summarise(deviation_releaseyear = t * sum(rating - movie_avg)/n())
-  #
-  #release_year_3_bias <- train_set %>%
-  #  group_by(releaseyear) %>%
-  #  summarise(deviation_releaseyear = t * sum(rating - movie_avg)/n())
-  #
-  #release_year_4_bias <- train_set %>%
-  #  group_by(releaseyear) %>%
-  #  summarise(deviation_releaseyear = t * sum(rating - movie_avg)/n())
-  
   model <- test_set %>%
     inner_join(genre_bias, by="main_genre") %>%
     inner_join(movie_bias, by="movieId") %>%
-    inner_join(user_bias, by="userId") # %>%
-    #inner_join(release_year_bias, by="releaseyear")
+    inner_join(user_bias, by="userId")
 
   model$predicted_rating <- model$deviation_genre + 
                             model$deviation_user + 
                             model$deviation_movie + 
-                            #model$deviation_releaseyear +
                             movie_avg
   
   return(RMSE(test_set$rating, model$predicted_rating))
-})
+}
 
-#qplot(tuning_param, rmse_seq, geom="line")
-#param <- tuning_param[which.min(rmse_seq)]
-#print(param)
+# add result to table
+ml_results <- ml_results %>% 
+  bind_rows(tibble(Model="Tuned model", RMSE=tuned_movie_user_genre_model()))
+
 ```
 
-first tried with only the genre_bias tuning, all other were 1 * sum(rating - movie_avg)/n(). This resulted in the best tuning parameter around 0. So the genre_bias effect is reduced  having almost 0 effect. So in the end I removed it (commented it out for the history sake). -> genre_bias tune parameter: 0.0055
-
-For the movie_bias testing the sequence seq(0, 1, 0.1) showed a minimum at about 0.9 -> movie_bias tune parameter: 0.8944
-
-For the user_bias testing the sequence seq(0.5, 1.0, 0.1) showed a minimum at about 0.8 -> user_bias tune parameter: 0.798
+`r knitr::kable(ml_results) %>% kable_styling(font_size=8, latex_options="hold_position")`
 
 ## Results
 ### RMSE
@@ -736,9 +817,9 @@ This are all the achieved model RMSE:
 # Conclusion
 Even with all this tuning, lower than `r rmse_final_model` is not possible with this approach.
 
-* include year of rate or year diff from release to rating?
+* Include year of rating or year differnece from release to rating
 * decade instead of release year? 5 year bins?
-* side genres?
+* include weights of side genres
 * remove outliers?
 
 ### Future Improvements

@@ -9,6 +9,9 @@ if(!require(lubridate)) install.packages("lubridate")
 if(!require(scales)) install.packages("scales")
 if(!require(parallel)) install.packages("parallel")
 if(!require(stringr)) install.packages("stringr")
+if(!require(kableExtra)) install.packages("kableExtra")
+if(!require(tidyverse)) install.packages("tidyverse")
+if(!require(caret)) install.packages("caret")
 
 library(ggplot2)
 library(benchmarkme)
@@ -17,6 +20,9 @@ library(lubridate)
 library(scales)
 library(parallel)
 library(stringr)
+library(kableExtra) 
+library(tidyverse) 
+library(caret)
 
 # the next section is copied from edx:
 ##########################################################
@@ -144,7 +150,8 @@ edx[apply(is.na(edx), 1, any), ]
 # none
 
 # List genres 
-unique(unlist(strsplit(edx$genres, "\\|")))
+unique_genres <- unique(unlist(strsplit(edx$genres, "\\|")))
+unique_genres
 # inspect "(no genres listed)" movies
 subset(edx, genres=="(no genres listed)")
 # "Pull My Daisy" from 1958 is the only movie without a genre. According to IMDB its genre is "Short".
@@ -158,19 +165,21 @@ edx$side2_genre <- sapply(strsplit(edx$genres, "\\|"), function(x) x[3])
 # Extract Rating Year
 edx <- edx %>%
   mutate(date=as_datetime(timestamp), yearrated=year(date))  
+head(edx)
 
 # Extract Release Year
 edx <- edx %>%
   mutate(releaseyear=as.numeric(str_extract(str_extract(title, "[/(]\\d{4}[/)]$"), regex("\\d{4}"))))
+head(edx)
 
 # Distribution of ratings 
 edx %>% 
   group_by(rating) %>% 
   summarise(perc = n()/nrow(edx)) %>% 
   ggplot(aes(rating, perc)) + 
-    geom_col() + 
-    theme_light() +
-    labs(x="Rating", y="%", title = "Rating distribution overall")
+  geom_col() + 
+  theme_light() +
+  labs(x="Rating", y="%", title = "Rating distribution overall")
 # Most ratings are given as full number ratings (4, 3 or 5). Also the half-point tratings distribution
 # follows the same distribution as the full number ratings
 
@@ -179,10 +188,10 @@ edx %>%
   group_by(main_genre) %>%
   summarise(perc = n()/nrow(edx)) %>% 
   ggplot(aes(reorder(main_genre, -perc), perc)) +
-    geom_col() +
-    theme_light() +
-    theme(axis.text.x = element_text(angle=90)) +
-    labs(x="Genre", y="% of movies", title = "Distribution of genres")
+  geom_col() +
+  theme_light() +
+  theme(axis.text.x = element_text(angle=90)) +
+  labs(x="Genre", y="% of movies", title = "Distribution of genres")
 # Most genres listed are Action, Comedy and Drama
 
 # add side genres into account
@@ -320,32 +329,6 @@ ggplot(edx_5yr_genre, aes(x = five_year, y = mean_rating, color = main_genre)) +
 # some genres have pretty consistent average ratings over the years, others like e.g. 
 # Horror or Fantasy fluctuate a lot more.
 
-#edx_decades <- edx
-#edx_decades <- edx_decades %>% 
-#  mutate(decade = floor(releaseyear/10)*10) %>% 
-#  group_by(main_genre, decade) %>%
-#  dplyr::summarise(count = n()) %>%
-#  as.data.frame 
-
-#ggplot(edx_decades, aes(x = decade, y = count, color = main_genre)) +
-#  geom_line() +
-#  scale_x_continuous(limits = c(1900, 2020), breaks = seq(1900, 2020, 10)) +
-#  labs(x = "Decade", y = "Number of Movies", color = "Genre")
-
-# Number of movies per genre per decade
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-#
-
 ##########################################################
 # ML
 ##########################################################
@@ -389,10 +372,14 @@ rm(test_set_final, test_index, removed)
 # Try stupid approach by guessing a rating from 0 to 5
 guess_model <- sample(c(0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5), length(test_set$rating), replace=TRUE)
 
+# calc the RMSE of the guessed ratings on the test set
 rmse_guessing <- RMSE(test_set$rating, guess_model)
 
 ml_results <- ml_results %>%
   bind_rows(tibble(Model="Guessing", RMSE=rmse_guessing))
+
+# show the resulting RMSE table
+ml_results
 
 # Resulting RMSE is about 2.156. Pretty far of the 0.865 we are after.
 # cleanup
@@ -408,6 +395,9 @@ rmse_avg_model <- RMSE(test_set$rating, avg_model)
 # add result to table
 ml_results <- ml_results %>% 
   bind_rows(tibble(Model="Avg Model", RMSE=rmse_avg_model))
+
+# show the resulting RMSE table
+ml_results
 
 # The average of every movie used for predicting a rating results in 1.059841. 
 # Closer but still far off.
@@ -429,7 +419,7 @@ mean_genre_model <- test_set %>%
   inner_join(genre_bias, by="main_genre")
 
 # predict the rating, genre bias of the movie in the test_set + average
-mean_genre_model$predicted_rating <- mean_genre_model$deviation_genre + movie_avg
+mean_genre_model$predicted_rating <- movie_avg + mean_genre_model$deviation_genre
 
 # calculate RMSE (on test_set)
 rmse_mean_genre_model <- RMSE(test_set$rating, mean_genre_model$predicted_rating)
@@ -437,6 +427,9 @@ rmse_mean_genre_model <- RMSE(test_set$rating, mean_genre_model$predicted_rating
 # add result to table
 ml_results <- ml_results %>% 
   bind_rows(tibble(Model="Genre Model", RMSE=rmse_mean_genre_model))
+
+# show the resulting RMSE table
+ml_results
 
 # The RMSE is a bit better (1.04824) than just take the average like before.
 # cleanup
@@ -463,35 +456,40 @@ rmse_mean_movie_model <- RMSE(test_set$rating, mean_movie_model$predicted_rating
 ml_results <- ml_results %>% 
   bind_rows(tibble(Model="Movie Model", RMSE=rmse_mean_movie_model))
 
+# show the resulting RMSE table
+ml_results
+
 # With and RMSE of 0.9427265 we are now in the sub 1 category.
 # cleanup
 rm(mean_movie_model)
 
 ############## MEAN + USER + MOVIE #################
 # Let's add the average rating of a user into the mix. 
-
-# user_bias is the differnece of the avg user rating to the mean rating
+# user_bias is the difference of the avg user rating to the mean rating
 user_bias <- train_set %>%
+  left_join(movie_bias, by='movieId') %>%
   group_by(userId) %>%
-  summarise(deviation_user = mean(rating - movie_avg))
-
-mean_movie_user_model <- test_set %>%
-  inner_join(movie_bias, by="movieId") %>%
-  inner_join(user_bias, by="userId")
+  summarize(deviation_user = mean(rating - movie_avg - deviation_movie))
 
 # predict the rating, based the movie (by movieId) and the user (by userId) on the deviation + average 
-mean_movie_user_model$predicted_rating <- mean_movie_user_model$deviation_user + 
-                                          mean_movie_user_model$deviation_movie + 
-                                          movie_avg
+mean_movie_user_model <- test_set %>%
+  left_join(movie_bias, by='movieId') %>%
+  left_join(user_bias, by='userId') %>%
+  mutate(predicted_rating = movie_avg + deviation_movie + deviation_user) %>%
+  pull(predicted_rating)
 
 # RMSE (on test_set)
-rmse_mean_movie_user_model <- RMSE(test_set$rating, mean_movie_user_model$predicted_rating)
+rmse_mean_movie_user_model <- RMSE(test_set$rating, mean_movie_user_model)
 
 # add result to table
 ml_results <- ml_results %>% 
   bind_rows(tibble(Model="Movie + User Model", RMSE=rmse_mean_movie_user_model))
 
-# The user and movie gets us below 0.9. But 0.8849396 is still not < 0.865
+# show the resulting RMSE table
+ml_results
+
+# The user and movie gets us below 0.9. 
+# RMSE: 0.8557783
 rm(mean_movie_user_model)
 
 ########### MEAN + MOVIE + GENRE + USER ##############
@@ -501,6 +499,7 @@ mean_movie_user_genre_model <- test_set %>%
   inner_join(user_bias, by="userId") %>%
   inner_join(genre_bias, by="main_genre")
 
+# make prediction on test set with the movie/user/genre model
 mean_movie_user_genre_model$predicted_rating <- mean_movie_user_genre_model$deviation_user + 
                                                 mean_movie_user_genre_model$deviation_movie + 
                                                 mean_movie_user_genre_model$deviation_genre + 
@@ -513,7 +512,16 @@ rmse_mean_movie_user_genre_model <- RMSE(test_set$rating, mean_movie_user_genre_
 ml_results <- ml_results %>% 
   bind_rows(tibble(Model="Movie + User + Genre Model", RMSE=rmse_mean_movie_user_genre_model))
 
+# show the resulting RMSE table
+ml_results
+
 # This resulted in 0.9023256, which is worse than only using the movie and user. Maybe some tuning will fix it.
+
+# cleanup
+rm(mean_movie_user_genre_model)
+
+
+# tests with genres instead of main_genre showed worse results.
 
 ########### REGULARIZATION ##############
 lambdas <- seq(0.00, 0.001, 0.0001)
@@ -539,9 +547,137 @@ lambda <- lambdas[which.min(rmses)]
 print(lambda)
 
 ########### TUNING ##############
+# sequence from 0 to 1
 tuning_param <- seq(0, 1, 0.1)
 
+# tune the genre bias
 rmse_seq <- sapply(tuning_param, function(t) {
+  avg <- mean(train_set$rating)
+  
+  genre_bias <- train_set %>%
+    group_by(main_genre) %>%
+    summarise(deviation_genre = t * sum(rating - movie_avg)/n())
+  
+  movie_bias <- train_set %>%
+    group_by(movieId) %>%
+    summarise(deviation_movie = 0.8944 * sum(rating - movie_avg)/n())
+  
+  user_bias <- train_set %>%
+    group_by(userId) %>%
+    summarise(deviation_user = 0.798 * sum(rating - movie_avg)/n())
+  
+  model <- test_set %>%
+    inner_join(genre_bias, by="main_genre") %>%
+    inner_join(movie_bias, by="movieId") %>%
+    inner_join(user_bias, by="userId")
+  
+  model$predicted_rating <- model$deviation_genre + 
+                            model$deviation_user + 
+                            model$deviation_movie + 
+                            movie_avg
+  
+  return(RMSE(test_set$rating, model$predicted_rating))
+})
+
+# plot the tuning parameters
+qplot(tuning_param, rmse_seq, geom="line")
+
+# find min tuning
+param <- tuning_param[which.min(rmse_seq)]
+param
+# with a bit of tuning the sequence we find 0.005 for the genre bias
+
+# tune the movie bias
+rmse_seq <- sapply(tuning_param, function(t) {
+  avg <- mean(train_set$rating)
+  
+  genre_bias <- train_set %>%
+    group_by(main_genre) %>%
+    summarise(deviation_genre = 0.005 * sum(rating - movie_avg)/n())
+  
+  movie_bias <- train_set %>%
+    group_by(movieId) %>%
+    summarise(deviation_movie = t * sum(rating - movie_avg)/n())
+  
+  user_bias <- train_set %>%
+    group_by(userId) %>%
+    summarise(deviation_user = 0.798 * sum(rating - movie_avg)/n())
+  
+  model <- test_set %>%
+    inner_join(genre_bias, by="main_genre") %>%
+    inner_join(movie_bias, by="movieId") %>%
+    inner_join(user_bias, by="userId")
+  
+  model$predicted_rating <- model$deviation_genre + 
+    model$deviation_user + 
+    model$deviation_movie + 
+    movie_avg
+  
+  return(RMSE(test_set$rating, model$predicted_rating))
+})
+
+# plot the tuning parameters
+qplot(tuning_param, rmse_seq, geom="line")
+
+# find min tuning
+param <- tuning_param[which.min(rmse_seq)]
+param
+# with a bit of tuning we find 0.8944
+
+# tune the user bias
+rmse_seq <- sapply(tuning_param, function(t) {
+  avg <- mean(train_set$rating)
+  
+  genre_bias <- train_set %>%
+    group_by(main_genre) %>%
+    summarise(deviation_genre = 0.005 * sum(rating - movie_avg)/n())
+  
+  movie_bias <- train_set %>%
+    group_by(movieId) %>%
+    summarise(deviation_movie = 0.8944 * sum(rating - movie_avg)/n())
+  
+  user_bias <- train_set %>%
+    group_by(userId) %>%
+    summarise(deviation_user = t * sum(rating - movie_avg)/n())
+  
+  model <- test_set %>%
+    inner_join(genre_bias, by="main_genre") %>%
+    inner_join(movie_bias, by="movieId") %>%
+    inner_join(user_bias, by="userId")
+  
+  model$predicted_rating <- model$deviation_genre + 
+    model$deviation_user + 
+    model$deviation_movie + 
+    movie_avg
+  
+  return(RMSE(test_set$rating, model$predicted_rating))
+})
+
+# plot the tuning parameters
+qplot(tuning_param, rmse_seq, geom="line")
+
+# find min tuning
+param <- tuning_param[which.min(rmse_seq)]
+param
+# with a bit of tuning we find 0.798
+
+# Tuning summary
+# first tried with only the genre_bias tuning, all other were 1 * sum(rating - movie_avg)/n(). This
+# resulted in the best tuning parameter around 0. So the genre_bias effect is reduced 
+# having almost 0 effect. So in the end I removed it (commented it out for the history sake).
+# -> genre_bias tune parameter: 0.0055
+#
+# For the movie_bias testing the sequence seq(0, 1, 0.1) showed a minimum at about 0.9
+# -> movie_bias tune parameter: 0.8944
+# 
+# For the user_bias testing the sequence seq(0.5, 1.0, 0.1) showed a minimum at about 0.8
+# -> user_bias tune parameter: 0.798
+# 
+# Even with all this tuning, lower than 0.8786 is not possible with this approach.
+
+
+# resulting tuned version
+tuned_movie_user_genre_model <- function(t) {
   avg <- mean(train_set$rating)
   
   genre_bias <- train_set %>%
@@ -556,95 +692,63 @@ rmse_seq <- sapply(tuning_param, function(t) {
     group_by(userId) %>%
     summarise(deviation_user = 0.798 * sum(rating - movie_avg)/n())
   
-  #release_year_1_bias <- train_set %>%
-  #  group_by(releaseyear) %>%
-  #  ifelse(releaseyear < 1930)
-  #  summarise(deviation_releaseyear = t * sum(rating - movie_avg)/n())
-  #
-  #release_year_2_bias <- train_set %>%
-  #  group_by(releaseyear) %>%
-  #  summarise(deviation_releaseyear = t * sum(rating - movie_avg)/n())
-  #
-  #release_year_3_bias <- train_set %>%
-  #  group_by(releaseyear) %>%
-  #  summarise(deviation_releaseyear = t * sum(rating - movie_avg)/n())
-  #
-  #release_year_4_bias <- train_set %>%
-  #  group_by(releaseyear) %>%
-  #  summarise(deviation_releaseyear = t * sum(rating - movie_avg)/n())
-  
   model <- test_set %>%
     inner_join(genre_bias, by="main_genre") %>%
     inner_join(movie_bias, by="movieId") %>%
-    inner_join(user_bias, by="userId") # %>%
-    #inner_join(release_year_bias, by="releaseyear")
-
-  model$predicted_rating <- model$deviation_genre + 
-                            model$deviation_user + 
-                            model$deviation_movie + 
-                            #model$deviation_releaseyear +
-                            movie_avg
-  
-  return(RMSE(test_set$rating, model$predicted_rating))
-})
-
-qplot(tuning_param, rmse_seq, geom="line")
-
-param <- tuning_param[which.min(rmse_seq)]
-
-print(param)
-
-
-# first tried with only the genre_bias tuning, all other were 1 * sum(rating - movie_avg)/n(). This
-# resulted in the best tuning parameter around 0. So the genre_bias effect is reduced 
-# having almost 0 effect. So in the end I removed it (commented it out for the history sake).
-# -> genre_bias tune parameter: 0.0055
-#
-# For the movie_bias testing the sequence seq(0, 1, 0.1) showed a minimum at about 0.9
-# -> movie_bias tune parameter: 0.8944
-# 
-# For the user_bias testing the sequence seq(0.5, 1.0, 0.1) showed a minimum at about 0.8
-# -> user_bias tune parameter: 0.798
-# 
-# Even with all this tuning, lower than 0.8786 is not possible with this approach.
-
-########### FINAL RMSE ##############
-#
-#     0.879
-#
-final_model_prediction <- function() {
-  avg <- mean(train_set$rating)
-  
-  #genre_bias <- train_set %>%
-  #  group_by(main_genre) %>%
-  #  summarise(deviation_genre = 0.0055 * sum(rating - movie_avg)/n())
-  
-  movie_bias <- train_set %>%
-    group_by(movieId) %>%
-    summarise(deviation_movie = 0.8944 * sum(rating - movie_avg)/n())
-  
-  user_bias <- train_set %>%
-    group_by(userId) %>%
-    summarise(deviation_user = 0.798 * sum(rating - movie_avg)/n())
-  
-  model <- final_holdout_test %>%
-    #inner_join(genre_bias, by="main_genre") %>%
-    inner_join(movie_bias, by="movieId") %>%
     inner_join(user_bias, by="userId")
   
-  model$predicted_rating <- #model$deviation_genre + 
+  model$predicted_rating <- model$deviation_genre + 
     model$deviation_user + 
     model$deviation_movie + 
     movie_avg
-  return(model$predicted_rating)
+  
+  return(RMSE(test_set$rating, model$predicted_rating))
 }
 
+tuned_movie_user_genre_model()
+# 0.878559
+
+########### FINAL RMSE ##############
+
+# global movie average
+movie_avg <- mean(train_set$rating)
+
+#genre_bias <- train_set %>%
+#  group_by(main_genre) %>%
+#  summarise(deviation_genre = 0.0055 * sum(rating - movie_avg)/n())
+
+movie_bias <- train_set %>%
+  group_by(movieId) %>%
+  summarise(deviation_movie = 0.8944 * sum(rating - movie_avg)/n())
+
+user_bias <- train_set %>%
+  group_by(userId) %>%
+  summarise(deviation_user = 0.798 * sum(rating - movie_avg)/n())
+
+# make the final model by combining avg,movie and user bias
+final_model <- final_holdout_test %>%
+  #inner_join(genre_bias, by="main_genre") %>%
+  inner_join(movie_bias, by="movieId") %>%
+  inner_join(user_bias, by="userId")
+
+# make predictions on final_holdout_test set
+final_model$predicted_rating <-
+  movie_avg +
+  #final_model$deviation_genre + 
+  final_model$deviation_user + 
+  final_model$deviation_movie
+  
 # RMSE (on verification)
-rmse_final_model <- RMSE(final_holdout_test$rating, final_model_prediction())
+rmse_final_model <- RMSE(final_holdout_test$rating, final_model$predicted_rating)
+rmse_final_model
+# 0.8798819
 
 # add result to table
 ml_results <- ml_results %>% 
   bind_rows(tibble(Model="Final Model Verification", RMSE=rmse_final_model))
+
+# show all achieved RMSE from table
+ml_results
 
 
 # System Infos:
@@ -652,36 +756,3 @@ ml_results <- ml_results %>%
 hw_cpu <- get_cpu()
 hw_cpu$model_name
 hw_cpu$no_of_cores
-
-
-
-
-
-
-
-install.packages('biganalytics')
-library(biganalytics)
-RMSE = function(m, o){
-  sqrt(mean((m - o)^2))
-}
-
-x <- matrix(unlist(train_set), ncol=4)
-colnames(x) <- names(train_set)
-x <- as.big.matrix(x)
-head(x)
-
-blm_model <- biglm.big.matrix(rating ~ movieId + userId, data=x)
-predictions <- predict(blm, newdata=test_set)
-rmse_blm_model <- RMSE(test_set$rating, predictions)
-rmse_blm_model
-
-svm_model <- svm(rating ~ movieId + userId, data=x, kernel="linear", cost=1)
-predictions <- predict(svm_model, newdata=test$set)
-
-
-library(e1071)
-
-#svm_model <- train(rating ~ movieId + userId + main_genre, data=train_set, method="svmRadial", metric=metric, trControl=control)
-svm_model <- svm(rating ~ movieId + userId + genres, data=train_set, kernel="linear", cost=1)
-predictions <- predict(svm_model, newdata=test_set)
-rmse_svm_model <- RMSE(final_holdout_test$rating, predictions)
