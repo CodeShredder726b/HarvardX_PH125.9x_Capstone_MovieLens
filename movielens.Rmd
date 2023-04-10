@@ -126,29 +126,30 @@ There are several columns in this dataset:
 There are several aspects of the edx dataset to consider exploring: 
 
 * Several movies may be rated way above average because of a very good story or production.
-* Some genres (or genre combinations) may be rated higher than others
+* Some genres (or genre combinations) may be rated higher than others.
 * User ratings are possibly biased or generally rated higher or lower.
-* User ratings in relation to a genre. User A maybe likes Horror and Action but rates movies of other genres typically lower
-* User ratings in relation to movie release year 
+* User ratings in relation to a genre. A user maybe likes Horror and Action but rates movies of other genres typically lower.
+* User ratings in relation to movie release year.
 * User ratings in relation to popularity of movies (indie vs blockbuster).
 
 And probably lots more.
 
 The dataset *edx* contains `r sum(is.na(edx))` missing values.
 
-Lets list all genres. We notice a unusual genre named (no genres listed). On further investigation, only one movie (Pull My Daisy) has no genre listed. According to IMDB the genre of this movie from 1958 is "Short". Let's separate the genres listed and add the first three of each movie into separate columns.
-
 ```{r echo=FALSE, warning=FALSE}
 # List genres 
 unique_genres <- unique(unlist(strsplit(edx$genres, "\\|")))
 ```
-`r unique_genres`
 
-We have a genre with *(no genres listed)*, lets inspect that:
+Lets list all genres.
+
+`r kable(data.frame(Genres = unique_genres))`
+
+We notice a unusual genre named *(no genres listed)*.
 
 `r knitr::kable(subset(edx, genres=="(no genres listed)")) %>% kable_styling(font_size=8, latex_options="hold_position")`
 
-"Pull My Daisy" from 1958 is the only movie without a genre. According to IMDB its genre is "Short".
+On further investigation, only one movie (Pull My Daisy) has no genre listed. According to IMDB the genre of this movie from 1958 is "Short". Let's separate the genres listed and add the first three of each movie into separate columns.
 
 ```{r echo=FALSE, warning=FALSE, results='asis'}
 # "Pull My Daisy" from 1958 is the only movie without a genre. According to IMDB its genre is "Short".
