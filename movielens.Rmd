@@ -179,6 +179,45 @@ Now some columns are added for further inspection, lets see the table again.
 
 `r knitr::kable(head(edx)) %>% kable_styling(font_size=4, latex_options="hold_position")`
 
+```{r echo=TRUE}
+# Determine the number of columns to display in each sub-table
+ncols_per_table <- 5
+
+# Calculate the number of sub-tables needed
+num_tables <- ceiling(ncol(df) / ncols_per_table)
+
+# Print each sub-table in a separate column
+cat("\\begin{table}\n")
+cat("\\centering\n")
+cat("\\caption{My Table}\n")
+cat("\\label{tab:mytable}\n")
+cat("\\begin{tabular}{", paste(rep("c", ncols_per_table), collapse = ""), "}\n")
+cat(paste(colnames(df)[1:ncols_per_table], collapse = " & "), "\\\\\n")
+cat("\\hline\n")
+for (i in 1:nrow(df)) {
+  cat(paste(df[i, 1:ncols_per_table], collapse = " & "), "\\\\\n")
+}
+cat("\\hline\n")
+cat("\\end{tabular}\n")
+for (j in 2:num_tables) {
+  start_col <- (j - 1) * ncols_per_table + 1
+  end_col <- min(j * ncols_per_table, ncol(df))
+  sub_df <- df[, start_col:end_col]
+  cat("\\hfill\n")
+  cat("\\begin{tabular}{", paste(rep("c", ncol(sub_df)), collapse = ""), "}\n")
+  cat(paste(colnames(sub_df), collapse = " & "), "\\\\\n")
+  cat("\\hline\n")
+  for (i in 1:nrow(sub_df)) {
+    cat(paste(sub_df[i,], collapse = " & "), "\\\\\n")
+  }
+  cat("\\hline\n")
+  cat("\\end{tabular}\n")
+}
+cat("\\end{table}\n")
+```
+
+
+
 
 ### Distributions
 Lets plot some distributions, starting the distribution of ratings.
