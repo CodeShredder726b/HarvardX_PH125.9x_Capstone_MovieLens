@@ -276,7 +276,7 @@ edx %>%
   summarise(rating = mean(rating)) %>%
   ggplot(aes(releaseyear, rating)) +
     geom_point() +
-    geom_smooth() +
+    geom_smooth(method = "lm", formula = y ~ poly(x,6)) +
     theme_light() +
     labs(x="Release year", y="Avg rating", title="Avg rating per release year")
 # Movies released before 1970 are generally rated higher than movies released in the 
@@ -288,7 +288,7 @@ edx %>%
   summarise(n=n()) %>%
   ggplot(aes(releaseyear, n)) +
     geom_point() +
-    geom_smooth() +
+    geom_smooth(method = "lm", formula = y ~ poly(x,6)) +
     theme_light() +
     labs(x="Release Year", y="NOF Movies", title="Nr of movies released per year")
 # Movie releases were relative stable before the 1970, then picked up and almost
@@ -304,7 +304,7 @@ edx %>%
   summarise(n=n()) %>%
   ggplot(aes(yearrated, n)) +
     geom_point() +
-    geom_smooth() +
+    geom_smooth(method = "lm", formula = y ~ poly(x,8)) +
     theme_light() +
     xlim(1996, 2008) +
     labs(x="Year rated", y="NOF Movies", title="Nr of movies rated per year")
@@ -463,6 +463,35 @@ ml_results
 # cleanup
 rm(mean_movie_model)
 
+################## MEAN + USER #####################
+# user_bias is the difference of the avg users rating to the mean rating
+user_bias <- train_set %>%
+  group_by(userId) %>%
+  summarise(deviation_user = mean(rating - movie_avg))
+
+# on the test set add the movie avg (3.512) with the difference the movie had 
+# to the avg in the training set and pull that column as a vector
+mean_user_model <- test_set %>%
+  inner_join(user_bias, by="userId")
+
+# predict the rating, based the movie (by movieId) on the deviation + average 
+mean_user_model$predicted_rating <- mean_user_model$deviation_user + movie_avg
+
+# RMSE (on test_set)
+rmse_mean_user_model <- RMSE(test_set$rating, mean_user_model$predicted_rating)
+
+# add result to table
+ml_results <- ml_results %>% 
+  bind_rows(tibble(Model="User Model", RMSE=rmse_mean_user_model))
+
+# show the resulting RMSE table
+ml_results
+
+# With and RMSE of 0.978 
+# cleanup
+rm(mean_user_model)
+
+
 ############## MEAN + USER + MOVIE #################
 # Let's add the average rating of a user into the mix. 
 # user_bias is the difference of the avg user rating to the mean rating
@@ -520,8 +549,84 @@ ml_results
 # cleanup
 rm(mean_movie_user_genre_model)
 
-
 # tests with genres instead of main_genre showed worse results.
+
+
+########### MEAN + MOVIE + GENRE1/2/3 + USER ##############
+main_genre_bias <- train_set %>%
+  group_by(main_genre) %>%
+  summarise(deviation_main_genre = mean(rating - movie_avg))
+
+side1_genre_bias <- train_set %>%
+  group_by(side1_genre) %>%
+  summarise(deviation_side1_genre = mean(rating - movie_avg))
+
+side2_genre_bias <- train_set %>%
+  group_by(side2_genre) %>%
+  summarise(deviation_side2_genre = mean(rating - movie_avg))
+
+# combine user, movie and genre together
+mean_movie_user_all_genre_model <- test_set %>%
+  inner_join(movie_bias, by="movieId") %>%
+  inner_join(user_bias, by="userId") %>%
+  inner_join(main_genre_bias, by="main_genre") %>%
+  inner_join(side1_genre_bias, by="side1_genre") %>%
+  inner_join(side2_genre_bias, by="side2_genre")
+  
+# make prediction on test set with the movie/user/genre model
+mean_movie_user_all_genre_model$predicted_rating <- 
+  mean_movie_user_all_genre_model$deviation_user + 
+  mean_movie_user_all_genre_model$deviation_movie + 
+  mean_movie_user_all_genre_model$deviation_main_genre + 
+  mean_movie_user_all_genre_model$deviation_side1_genre + 
+  mean_movie_user_all_genre_model$deviation_side2_genre + 
+  movie_avg
+
+# RMSE (on test_set)
+rmse_mean_movie_user_all_genre_model <- RMSE(test_set$rating, mean_movie_user_all_genre_model$predicted_rating)
+
+# add result to table
+ml_results <- ml_results %>% 
+  bind_rows(tibble(Model="Movie + User + All Genre Model", RMSE=rmse_mean_movie_user_all_genre_model))
+
+# show the resulting RMSE table
+ml_results
+
+# This resulted in 0.9023256, which is worse than only using the movie and user. Maybe some tuning will fix it.
+
+# cleanup
+rm(mean_movie_user_all_genre_model)
+
+########### MEAN + MOVIE + GENRE Combo + USER ##############
+comb_genre_bias <- train_set %>%
+  group_by(genres) %>%
+  summarise(deviation_comb_genre = mean(rating - movie_avg))
+
+# combine user, movie and genre together
+mean_movie_user_comb_genre_model <- test_set %>%
+  inner_join(movie_bias, by="movieId") %>%
+  inner_join(user_bias, by="userId") %>%
+  inner_join(comb_genre_bias, by="genres")
+
+# make prediction on test set with the movie/user/genre model
+mean_movie_user_comb_genre_model$predicted_rating <- 
+  mean_movie_user_comb_genre_model$deviation_user + 
+  mean_movie_user_comb_genre_model$deviation_movie + 
+  mean_movie_user_comb_genre_model$deviation_comb_genre + 
+  movie_avg
+
+# RMSE (on test_set)
+rmse_mean_movie_user_comb_genre_model <- RMSE(test_set$rating, mean_movie_user_comb_genre_model$predicted_rating)
+
+# add result to table
+ml_results <- ml_results %>% 
+  bind_rows(tibble(Model="Movie + User + Combined Genre Model", RMSE=rmse_mean_movie_user_comb_genre_model))
+
+# show the resulting RMSE table
+ml_results
+
+# cleanup
+rm(mean_movie_user_comb_genre_model)
 
 ########### REGULARIZATION ##############
 lambdas <- seq(0.00, 0.001, 0.0001)
