@@ -314,7 +314,7 @@ edx %>%
   summarise(rating = mean(rating)) %>%
   ggplot(aes(releaseyear, rating)) +
     geom_point() +
-    geom_smooth() +
+    geom_smooth(method = "lm", formula = y ~ poly(x,6)) +
     theme_light() +
     labs(x="Release year", y="Avg rating", title="Avg rating per release year")
 ```
@@ -329,7 +329,7 @@ edx %>%
   summarise(n=n()) %>%
   ggplot(aes(releaseyear, n)) +
     geom_point() +
-    geom_smooth() +
+    geom_smooth(method = "lm", formula = y ~ poly(x,6)) +
     theme_light() +
     labs(x="Release Year", y="NOF Movies", title="Nr of movies released per year")
 ```
@@ -344,7 +344,7 @@ edx %>%
   summarise(n=n()) %>%
   ggplot(aes(yearrated, n)) +
     geom_point() +
-    geom_smooth() +
+    geom_smooth(method = "lm", formula = y ~ poly(x,6)) +
     theme_light() +
     xlim(1996, 2008) +
     labs(x="Year rated", y="NOF Movies", title="Nr of movies rated per year")
