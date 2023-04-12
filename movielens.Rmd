@@ -183,44 +183,6 @@ Now some columns are added for further inspection, lets see the table again.
 
 `r knitr::kable(head(edx)) %>% kable_styling(font_size=4, latex_options="hold_position")`
 
-```{r echo=TRUE}
-# Determine the number of columns to display in each sub-table
-ncols_per_table <- 5
-
-# Calculate the number of sub-tables needed
-num_tables <- ceiling(ncol(df) / ncols_per_table)
-
-# Print each sub-table in a separate column
-cat("\\begin{table}\n")
-cat("\\centering\n")
-cat("\\caption{My Table}\n")
-cat("\\label{tab:mytable}\n")
-cat("\\begin{tabular}{", paste(rep("c", ncols_per_table), collapse = ""), "}\n")
-cat(paste(colnames(df)[1:ncols_per_table], collapse = " & "), "\\\\\n")
-cat("\\hline\n")
-for (i in 1:nrow(df)) {
-  cat(paste(df[i, 1:ncols_per_table], collapse = " & "), "\\\\\n")
-}
-cat("\\hline\n")
-cat("\\end{tabular}\n")
-for (j in 2:num_tables) {
-  start_col <- (j - 1) * ncols_per_table + 1
-  end_col <- min(j * ncols_per_table, ncol(df))
-  sub_df <- df[, start_col:end_col]
-  cat("\\hfill\n")
-  cat("\\begin{tabular}{", paste(rep("c", ncol(sub_df)), collapse = ""), "}\n")
-  cat(paste(colnames(sub_df), collapse = " & "), "\\\\\n")
-  cat("\\hline\n")
-  for (i in 1:nrow(sub_df)) {
-    cat(paste(sub_df[i,], collapse = " & "), "\\\\\n")
-  }
-  cat("\\hline\n")
-  cat("\\end{tabular}\n")
-}
-cat("\\end{table}\n")
-```
-
-
 ### Distributions
 Lets plot some distributions, starting the distribution of ratings.
 
@@ -573,6 +535,76 @@ With and RMSE of `r { rmse_mean_movie_model }` we are now in the sub 1 category.
 
 `r kable(ml_results)`
 
+## User bias
+Lets inspect the user bias. 
+
+```{r echo=TRUE}
+user_bias <- train_set %>%
+  group_by(userId) %>%
+  summarise(deviation_user = mean(rating - movie_avg))
+
+mean_user_model <- test_set %>%
+  inner_join(user_bias, by="userId")
+```
+
+```{r include=FALSE, echo=TRUE, warning=FALSE}
+# predict the rating, based the movie (by movieId) on the deviation + average 
+mean_user_model$predicted_rating <- mean_user_model$deviation_user + movie_avg
+
+# RMSE (on test_set)
+rmse_mean_user_model <- RMSE(test_set$rating, mean_user_model$predicted_rating)
+
+# add result to table
+ml_results <- ml_results %>% 
+  bind_rows(tibble(Model="User Model", RMSE=rmse_mean_user_model))
+
+# show the resulting RMSE table
+ml_results
+
+# With and RMSE of 0.978 
+# cleanup
+rm(mean_user_model)
+```
+
+The user bias results in an RMSE of `r { rmse_mean_user_model }`.
+
+`r kable(ml_results)`
+
+
+## Release year bias
+Lets see if the release year will bring the RMSE down.
+
+```{r echo=TRUE}
+releaseyear_bias <- train_set %>%
+  group_by(releaseyear) %>%
+  summarise(deviation_releaseyear = mean(rating - movie_avg))
+
+mean_releaseyear_model <- test_set %>%
+  inner_join(releaseyear_bias, by="releaseyear")
+```
+
+```{r include=FALSE, echo=TRUE, warning=FALSE}
+# predict the rating, based the release year on the deviation + average 
+mean_releaseyear_model$predicted_rating <- mean_releaseyear_model$deviation_releaseyear + movie_avg
+
+# RMSE (on test_set)
+rmse_mean_releaseyear_model <- RMSE(test_set$rating, mean_releaseyear_model$predicted_rating)
+
+# add result to table
+ml_results <- ml_results %>% 
+  bind_rows(tibble(Model="Release Year Model", RMSE=rmse_mean_releaseyear_model))
+
+# show the resulting RMSE table
+ml_results
+
+# With and RMSE of 0.978 
+# cleanup
+rm(mean_releaseyear_model)
+```
+
+The release year of a movie bias results in an RMSE of `r { rmse_mean_releaseyear_model }`.
+
+`r kable(ml_results)`
 
 ## User and Movie bias
 Let's add the average rating of a user into the mix. 
@@ -609,6 +641,40 @@ The user and movie gets us below 0.9. But `r { rmse_mean_movie_user_model }` is 
 `r kable(ml_results)`
 
 
+## User and Movie and Release Year bias
+To the last model we add the release year.
+
+```{r echo=TRUE}
+mean_movie_user_releaseyear_model <- test_set %>%
+  left_join(movie_bias, by='movieId') %>%
+  left_join(user_bias, by='userId') %>%
+  left_join(releaseyear_bias, by='releaseyear')
+```
+
+```{r include=FALSE, echo=TRUE, warning=FALSE}
+# make prediction on test set with the movie/user/releaseyear model
+mean_movie_user_releaseyear_model$predicted_rating <- mean_movie_user_releaseyear_model$deviation_user + 
+                                                      mean_movie_user_releaseyear_model$deviation_movie + 
+                                                      mean_movie_user_releaseyear_model$deviation_releaseyear + 
+                                                      movie_avg
+
+# RMSE (on test_set)
+rmse_mean_movie_user_releaseyear_model <- RMSE(test_set$rating, mean_movie_user_releaseyear_model$predicted_rating)
+
+# add result to table
+ml_results <- ml_results %>% 
+  bind_rows(tibble(Model="Movie + User + Release Year Model", RMSE=rmse_mean_movie_user_releaseyear_model))
+
+# show the resulting RMSE table
+ml_results
+
+rm(mean_movie_user_releaseyear_model)
+```
+
+With the release year added to the user and movie bias we get `r { rmse_mean_movie_user_releaseyear_model }`.
+
+`r kable(ml_results)`
+
 ## User, Movie and Genre bias
 Now combine user, movie and genre together in a single model.
 
@@ -634,6 +700,98 @@ ml_results <- ml_results %>%
 ```
 
 This resulted in `r { rmse_mean_movie_user_genre_model } `, which is worse than only using the movie and user. Maybe some tuning will fix it.
+
+`r kable(ml_results)`
+
+
+## User, Movie, Release Year and Genre bias
+Now combine user, movie, release year and genre together in a single model.
+
+```{r echo=TRUE}
+mean_movie_user_genre_releaseyear_model <- test_set %>%
+  inner_join(movie_bias, by="movieId") %>%
+  inner_join(user_bias, by="userId") %>%
+  inner_join(genre_bias, by="main_genre") %>%
+  inner_join(releaseyear_bias, by="releaseyear")
+```
+
+```{r include=FALSE, echo=TRUE, warning=FALSE}
+# make prediction on test set with the movie/user/genre model
+mean_movie_user_genre_releaseyear_model$predicted_rating <- mean_movie_user_genre_releaseyear_model$deviation_user + 
+                                                mean_movie_user_genre_releaseyear_model$deviation_movie + 
+                                                mean_movie_user_genre_releaseyear_model$deviation_genre + 
+                                                mean_movie_user_genre_releaseyear_model$deviation_releaseyear + 
+                                                movie_avg
+
+# RMSE (on test_set)
+rmse_mean_movie_user_genre_releaseyear_model <- RMSE(test_set$rating, mean_movie_user_genre_releaseyear_model$predicted_rating)
+
+# add result to table
+ml_results <- ml_results %>% 
+  bind_rows(tibble(Model="Movie + User + Genre + Release Year Model", RMSE=rmse_mean_movie_user_genre_releaseyear_model))
+
+# show the resulting RMSE table
+ml_results
+
+# cleanup
+rm(mean_movie_user_genre_releaseyear_model)
+```
+
+This resulted in `r { rmse_mean_movie_user_genre_releaseyear_model } `.
+
+`r kable(ml_results)`
+
+## User, Movie, Release Year and first three listed genres bias
+Same as before but instead of the whole genres list as a whole the first three listed genres are used. 
+
+```{r echo=TRUE}
+main_genre_bias <- train_set %>%
+  group_by(main_genre) %>%
+  summarise(deviation_main_genre = mean(rating - movie_avg))
+
+side1_genre_bias <- train_set %>%
+  group_by(side1_genre) %>%
+  summarise(deviation_side1_genre = mean(rating - movie_avg))
+
+side2_genre_bias <- train_set %>%
+  group_by(side2_genre) %>%
+  summarise(deviation_side2_genre = mean(rating - movie_avg))
+
+mean_movie_user_all_genre_model <- test_set %>%
+  inner_join(movie_bias, by="movieId") %>%
+  inner_join(user_bias, by="userId") %>%
+  inner_join(main_genre_bias, by="main_genre") %>%
+  inner_join(side1_genre_bias, by="side1_genre") %>%
+  inner_join(side2_genre_bias, by="side2_genre")
+```
+
+```{r include=FALSE, echo=TRUE, warning=FALSE}
+# make prediction on test set with the movie/user/genre model
+mean_movie_user_all_genre_model$predicted_rating <- 
+  mean_movie_user_all_genre_model$deviation_user + 
+  mean_movie_user_all_genre_model$deviation_movie + 
+  mean_movie_user_all_genre_model$deviation_main_genre + 
+  mean_movie_user_all_genre_model$deviation_side1_genre + 
+  mean_movie_user_all_genre_model$deviation_side2_genre + 
+  movie_avg
+
+# RMSE (on test_set)
+rmse_mean_movie_user_all_genre_model <- RMSE(test_set$rating, mean_movie_user_all_genre_model$predicted_rating)
+
+# add result to table
+ml_results <- ml_results %>% 
+  bind_rows(tibble(Model="Movie + User + All Genre Model", RMSE=rmse_mean_movie_user_all_genre_model))
+
+# show the resulting RMSE table
+ml_results
+
+# This resulted in 0.9023256, which is worse than only using the movie and user. Maybe some tuning will fix it.
+
+# cleanup
+rm(mean_movie_user_all_genre_model)
+```
+
+This resulted in `r { rmse_mean_movie_user_all_genre_model } `.
 
 `r kable(ml_results)`
 
@@ -665,7 +823,7 @@ rmses <- sapply(lambdas, function(lambda) {
 
 Lets try to tune the three biases, each individually and plot the tuning parameter and the resulting RMSE.
 
-```{r echo=FALSE, warning=FALSE, results='asis', out.width="%"}
+```{r echo=FALSE, warning=FALSE, results='asis', out.width="50%"}
 tuning_param <- seq(0, 1, 0.1)
 
 ### tuning genre bias
