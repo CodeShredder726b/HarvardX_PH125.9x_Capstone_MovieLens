@@ -42,6 +42,10 @@ Given is the loading of the MovieLens 10M dataset, split into an *edx* and a *fi
 ## Goal
 This dataset is used to explore and gain insight on how an effective recommendation algorithm could be developed. Such a machine learning algorithm is then developed and tested against the *final_holdout_test* set.
 
+## Summary
+The analysis revealed interesting properties and correlations of the various features. Among other things, older films tended to be rated higher than newer ones, and some genres were generally rated slightly higher or lower. Above all, however, the films and the users play a decisive role in developing a model. Unfortunately, only an RMSE of about 0.878 was possible with this method. For further interesting model trainings neither the time nor the available computing power was sufficient, for example other training approaches like KNN or Decision Tree could be tried.
+
+Translated with www.DeepL.com/Translator (free version)
 ```{r include=FALSE, echo=FALSE, warning=FALSE}
 ##########################################################
 # Create edx and final_holdout_test sets 
@@ -215,8 +219,6 @@ for (j in 2:num_tables) {
 }
 cat("\\end{table}\n")
 ```
-
-
 
 
 ### Distributions
@@ -855,15 +857,12 @@ This are all the achieved model RMSE:
 `r knitr::kable(ml_results) %>% kable_styling(font_size=8, latex_options="hold_position")`
 
 # Conclusion
-Even with all this tuning, lower than `r rmse_final_model` is not possible with this approach.
-
-* Include year of rating or year differnece from release to rating
-* decade instead of release year? 5 year bins?
-* include weights of side genres
-* remove outliers?
+Even with all this tuning, lower than `r rmse_final_model` is not possible with this approach. More training and maybe separating different features is needed.  
 
 ### Future Improvements
 Further information about the users could improve accuracy, e.g. shopping preferences, music taste, background information like education level. But there privacy concern about the usage of user personal data has to be considered. Training with larger dataset would be beneficial but would require more capable systems (e.g. with GPU). 
+Even with this dataset and no more features or data other model algorithms could be tried, for example KNN, SVM or Decision Tree could be tried. For further interesting model trainings neither the time nor the available computing power was sufficient.
+
 
 \newpage
 # Resources
