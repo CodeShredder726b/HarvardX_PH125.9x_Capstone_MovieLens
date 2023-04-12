@@ -491,6 +491,33 @@ ml_results
 # cleanup
 rm(mean_user_model)
 
+################## MEAN + RELEASE YEAR #####################
+# releaseyear_bias is the difference of the avg release year rating to the mean rating
+releaseyear_bias <- train_set %>%
+  group_by(releaseyear) %>%
+  summarise(deviation_releaseyear = mean(rating - movie_avg))
+
+# on the test set add the movie avg (3.512) with the difference the movie had 
+# to the avg in the training set and pull that column as a vector
+mean_releaseyear_model <- test_set %>%
+  inner_join(releaseyear_bias, by="releaseyear")
+
+# predict the rating, based the release year on the deviation + average 
+mean_releaseyear_model$predicted_rating <- mean_releaseyear_model$deviation_releaseyear + movie_avg
+
+# RMSE (on test_set)
+rmse_mean_releaseyear_model <- RMSE(test_set$rating, mean_releaseyear_model$predicted_rating)
+
+# add result to table
+ml_results <- ml_results %>% 
+  bind_rows(tibble(Model="Release Year Model", RMSE=rmse_mean_releaseyear_model))
+
+# show the resulting RMSE table
+ml_results
+
+# With and RMSE of 0.978 
+# cleanup
+rm(mean_releaseyear_model)
 
 ############## MEAN + USER + MOVIE #################
 # Let's add the average rating of a user into the mix. 
@@ -520,6 +547,34 @@ ml_results
 # The user and movie gets us below 0.9. 
 # RMSE: 0.8557783
 rm(mean_movie_user_model)
+
+
+############## MEAN + USER + MOVIE + RELEASE YEAR #################
+# Let's add the average rating of the release year to the previous. 
+# combine user, movie and releaseyear together
+mean_movie_user_releaseyear_model <- test_set %>%
+  left_join(movie_bias, by='movieId') %>%
+  left_join(user_bias, by='userId') %>%
+  left_join(releaseyear_bias, by='releaseyear')
+
+# make prediction on test set with the movie/user/releaseyear model
+mean_movie_user_releaseyear_model$predicted_rating <- mean_movie_user_releaseyear_model$deviation_user + 
+                                                      mean_movie_user_releaseyear_model$deviation_movie + 
+                                                      mean_movie_user_releaseyear_model$deviation_releaseyear + 
+                                                      movie_avg
+
+# RMSE (on test_set)
+rmse_mean_movie_user_releaseyear_model <- RMSE(test_set$rating, mean_movie_user_releaseyear_model$predicted_rating)
+
+# add result to table
+ml_results <- ml_results %>% 
+  bind_rows(tibble(Model="Movie + User + Release Year Model", RMSE=rmse_mean_movie_user_releaseyear_model))
+
+# show the resulting RMSE table
+ml_results
+
+rm(mean_movie_user_releaseyear_model)
+
 
 ########### MEAN + MOVIE + GENRE + USER ##############
 # combine user, movie and genre together
@@ -551,6 +606,33 @@ rm(mean_movie_user_genre_model)
 
 # tests with genres instead of main_genre showed worse results.
 
+########### MEAN + MOVIE + GENRE + USER + RELEASEYEAR ##############
+# combine user, movie, genre and release year together
+mean_movie_user_genre_releaseyear_model <- test_set %>%
+  inner_join(movie_bias, by="movieId") %>%
+  inner_join(user_bias, by="userId") %>%
+  inner_join(genre_bias, by="main_genre") %>%
+  inner_join(releaseyear_bias, by="releaseyear")
+
+# make prediction on test set with the movie/user/genre model
+mean_movie_user_genre_releaseyear_model$predicted_rating <- mean_movie_user_genre_releaseyear_model$deviation_user + 
+                                                mean_movie_user_genre_releaseyear_model$deviation_movie + 
+                                                mean_movie_user_genre_releaseyear_model$deviation_genre + 
+                                                mean_movie_user_genre_releaseyear_model$deviation_releaseyear + 
+                                                movie_avg
+
+# RMSE (on test_set)
+rmse_mean_movie_user_genre_releaseyear_model <- RMSE(test_set$rating, mean_movie_user_genre_releaseyear_model$predicted_rating)
+
+# add result to table
+ml_results <- ml_results %>% 
+  bind_rows(tibble(Model="Movie + User + Genre + Release Year Model", RMSE=rmse_mean_movie_user_genre_releaseyear_model))
+
+# show the resulting RMSE table
+ml_results
+
+# cleanup
+rm(mean_movie_user_genre_releaseyear_model)
 
 ########### MEAN + MOVIE + GENRE1/2/3 + USER ##############
 main_genre_bias <- train_set %>%
@@ -650,6 +732,86 @@ qplot(lambdas, rmses, geom = "line")
 lambda <- lambdas[which.min(rmses)]
 
 print(lambda)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# define sequences of values for genre, movie and user parameters
+tuning_param_genre <- seq(0.005, .0055, 0.0005)
+tuning_param_movie <- seq(0.8945, 0.8955, 0.0005)
+tuning_param_user <- seq(0.7995, 0.8005, 0.0005)
+
+# initialize variables for the best RMSE and corresponding tuning parameters
+best_rmse <- Inf
+best_params <- c()
+
+# loop over all combinations of genre, movie and user parameters
+for (genre_param in tuning_param_genre) {
+  for (movie_param in tuning_param_movie) {
+    for (user_param in tuning_param_user) {
+      # compute the bias terms and predicted ratings using the current tuning parameters
+      avg <- mean(train_set$rating)
+      
+      genre_bias <- train_set %>%
+        group_by(main_genre) %>%
+        summarise(deviation_genre = genre_param * sum(rating - movie_avg)/n())
+      
+      movie_bias <- train_set %>%
+        group_by(movieId) %>%
+        summarise(deviation_movie = movie_param * sum(rating - movie_avg)/n())
+      
+      user_bias <- train_set %>%
+        group_by(userId) %>%
+        summarise(deviation_user = user_param * sum(rating - movie_avg)/n())
+      
+      model <- test_set %>%
+        inner_join(genre_bias, by="main_genre") %>%
+        inner_join(movie_bias, by="movieId") %>%
+        inner_join(user_bias, by="userId")
+      
+      model$predicted_rating <- model$deviation_genre + 
+                                model$deviation_user + 
+                                model$deviation_movie + 
+                                movie_avg
+      
+      # compute the RMSE and update the best RMSE and tuning parameters if applicable
+      rmse <- RMSE(test_set$rating, model$predicted_rating)
+      if (rmse < best_rmse) {
+        best_rmse <- rmse
+        best_params <- c(genre_param,movie_param,user_param)
+      }
+    }
+  }
+}
+
+# print the best RMSE and tuning parameters
+cat("Best RMSE:", best_rmse, "\n")
+cat("Best tuning parameters:", paste0("genre_param=", best_params[1], ", movie_param=", best_params[2], ", user_param=", best_params[3]), "\n")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ########### TUNING ##############
 # sequence from 0 to 1
@@ -861,3 +1023,149 @@ ml_results
 hw_cpu <- get_cpu()
 hw_cpu$model_name
 hw_cpu$no_of_cores
+
+
+
+
+
+
+
+
+
+
+
+
+# sequence from 0 to 1
+tuning_param <- seq(0.79, 0.85, 0.0025)
+
+# tune the genre bias
+rmse_seq <- sapply(tuning_param, function(t) {
+  avg <- mean(train_set$rating)
+  
+  #genre_bias <- train_set %>%
+  #  group_by(main_genre) %>%
+  #  summarise(deviation_genre = 0.0055 * sum(rating - movie_avg)/n())
+  
+  movie_bias <- train_set %>%
+    group_by(movieId) %>%
+    summarise(deviation_movie = 0.8925 * sum(rating - movie_avg)/n())
+  
+  user_bias <- train_set %>%
+    group_by(userId) %>%
+    summarise(deviation_user = t * sum(rating - movie_avg)/n())
+  
+  releaseyear_bias <- train_set %>%
+    group_by(releaseyear) %>%
+    summarise(deviation_releaseyear = 0.008 * sum(rating - movie_avg)/n())
+  
+  model <- test_set %>%
+    #inner_join(genre_bias, by="main_genre") %>%
+    inner_join(movie_bias, by="movieId") %>%
+    inner_join(user_bias, by="userId") %>%
+    inner_join(releaseyear_bias, by="releaseyear")
+  
+  model$predicted_rating <- #model$deviation_genre + 
+                            model$deviation_user + 
+                            model$deviation_movie + 
+                            model$deviation_releaseyear + 
+                            movie_avg
+  
+  return(RMSE(test_set$rating, model$predicted_rating))
+})
+
+# plot the tuning parameters
+qplot(tuning_param, rmse_seq, geom="line")
+
+# find min tuning
+param <- tuning_param[which.min(rmse_seq)]
+param
+
+# genre_bias        0.0
+# movie_bias        0.885
+# user_bias         0.801
+# releaseyear_bias  0.008
+
+
+
+avg <- mean(train_set$rating)
+
+#genre_bias <- train_set %>%
+#  group_by(main_genre) %>%
+#  summarise(deviation_genre = 0.0055 * sum(rating - movie_avg)/n())
+
+movie_bias <- train_set %>%
+  group_by(movieId) %>%
+  summarise(deviation_movie = 0.8925 * sum(rating - movie_avg)/n())
+  #summarise(deviation_movie = 0.771 * sum(rating - movie_avg)/n())
+
+user_bias <- train_set %>%
+  group_by(userId) %>%
+  summarise(deviation_user = 0.801 * sum(rating - movie_avg)/n())
+  #summarise(deviation_user = 0.805 * sum(rating - movie_avg)/n())
+
+releaseyear_bias <- train_set %>%
+  group_by(releaseyear) %>%
+  summarise(deviation_releaseyear = 0.008 * sum(rating - movie_avg)/n())
+  #summarise(deviation_releaseyear = 0.121 * sum(rating - movie_avg)/n())
+
+model <- test_set %>%
+  #inner_join(genre_bias, by="main_genre") %>%
+  inner_join(movie_bias, by="movieId") %>%
+  inner_join(user_bias, by="userId")
+  #inner_join(releaseyear_bias, by="releaseyear")
+
+model$predicted_rating <- #model$deviation_genre + 
+                          model$deviation_user + 
+                          model$deviation_movie + 
+                          #model$deviation_releaseyear + 
+                          movie_avg
+
+final_rmse <- RMSE(test_set$rating, model$predicted_rating)
+final_rmse
+
+
+
+
+
+####### KNN
+library(class)
+genres_train <- strsplit(train_set$genres, "\\|")
+dummy_genres_train <- matrix(0, nrow=length(genres_train), ncol=length(unique_genres))
+for(i in 1:length(genres_train)) {
+  dummy_genres_train[i, match(genres_train[[i]], unique_genres)] <- 1
+}
+knn_train <- data.frame(
+  releaseyear = train_set$releaseyear,
+  yearrated = train_set$yearrated,
+  userId = train_set$userId,
+  movieId = train_set$movieId,
+  genres = dummy_genres_train,
+  rating = train_set$rating)
+knn_model <- train(
+  rating ~ ., 
+  method = "knn",
+  data = knn_train[, c("releaseyear","yearrated","userId","movieId",colnames(dummy_genres),"rating")],
+  preProcess = c("center", "scale"),
+  tuneLenght = 10,
+  trControl = trainControl(method="cv", number=5, verboseIter = TRUE)
+)
+
+genres_test <- strsplit(test_set$genres, "\\|")
+dummy_genres_test <- matrix(0, nrow=length(genres_test), ncol=length(unique_genres))
+for(i in 1:length(genres_test)) {
+  dummy_genres_test[i, match(genres_test[[i]], unique_genres)] <- 1
+}
+knn_test <- data.frame(
+  releaseyear = test_set$releaseyear,
+  yearrated = test_set$yearrated,
+  userId = test_set$userId,
+  movieId = test_set$movieId,
+  genres = dummy_genres_test,
+  rating = test_set$rating)
+predictions <- predict(knn_model, newdata=knn_test[, c("releaseyear","yearrated","userId","movieId",colnames(dummy_genres))])
+
+
+knn_model <- knn(train_set[, -ncol(train_set)], test_set[, -ncol(test_set)], train_set$rating, k=11)
+knn_model
+knn_rmse <- RMSE(test_set$rating, knn_model)
+knn_rmse
